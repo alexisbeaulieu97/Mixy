@@ -18,7 +18,7 @@ runs:
         curl -sSL https://install.python-poetry.org | python - -y --version=${{ inputs.poetry-version }}
         echo "$HOME/.poetry/bin" >> $GITHUB_PATH
     - name: Restore Poetry venv from cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: poetry-cache
       with:
         path: ~/.cache/pypoetry/virtualenvs
