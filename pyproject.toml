@@ -26,6 +26,7 @@ python-semantic-release = "^7.32.2"
 pytest = "^7.2.0"
 pytest-cov = "^4.0.0"
 pylint = "^2.15.9"
+flake8 = "^6.0.0"
 
 [tool.poetry.scripts]
 supertemplater = "supertemplater.cli:main"
