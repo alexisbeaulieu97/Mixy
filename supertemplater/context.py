@@ -1,0 +1,17 @@
+from dataclasses import dataclass, field
+from typing import Any
+
+from jinja2 import Environment, StrictUndefined
+
+
+@dataclass
+class Context:
+    env: Environment = Environment(undefined=StrictUndefined)
+    _ctx: dict[str, Any] = field(default_factory=lambda: dict(supertemplater={}))
+
+    def render(self, content: str) -> str:
+        t = self.env.from_string(content)
+        return t.render(self._ctx)
+
+    def update(self, **kwargs: dict[str, Any]) -> None:
+        self._ctx.update(**kwargs)

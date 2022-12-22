@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.11]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: ./.github/workflows/setup_poetry
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Lint with flake8
+        run: |
+          poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          poetry run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run tests with pytest
+        run: poetry run pytest -vvv --cov=pygitm --cov-report=term
+
+  publish:
+    needs: quality-check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, 'chore(release):')
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.11]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: ./.github/workflows/setup_poetry
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Publish using semantic-release
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "action@github.com"
+          poetry run semantic-release publish
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          REPOSITORY_USERNAME: ${{secrets.REPOSITORY_USERNAME}}
+          REPOSITORY_PASSWORD: ${{secrets.REPOSITORY_PASSWORD}}
