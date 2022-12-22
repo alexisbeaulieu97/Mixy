@@ -41,7 +41,7 @@ jobs:
           poetry run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Run tests with pytest
-        run: poetry run pytest -vvv --cov=pygitm --cov-report=term
+        run: poetry run pytest -vvv --cov=supertemplater --cov-report=term
 
   publish:
     needs: quality-check
