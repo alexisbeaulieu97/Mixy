@@ -22,7 +22,7 @@ def is_git_url(url: str) -> bool:
     Check if a URL is a Git URL.
 
     This function checks if a given URL starts with one of the prefixes for
-    Git protocols (e.g. "git://", "http://", "https://").
+    Git protocols (e.g. "git@", "http://", "https://").
 
     Args:
         url (str): The URL to check.

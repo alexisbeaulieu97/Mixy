@@ -939,6 +939,18 @@ snowballstemmer = "*"
 toml = ["toml"]
 
 [[package]]
+name = "pyfakefs"
+version = "5.0.0"
+description = "pyfakefs implements a fake file system that mocks the Python file system modules."
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "pyfakefs-5.0.0-py3-none-any.whl", hash = "sha256:e1b01954978fe2d9a4d75f079359d7f8d3af3bb12ff2dc8633a4cc0a0dc7fbda"},
+    {file = "pyfakefs-5.0.0.tar.gz", hash = "sha256:19d1d8f1ee520891d78b6ed05c2078e0792d545f83dee33461fbaa5cc72e187d"},
+]
+
+[[package]]
 name = "pyflakes"
 version = "3.0.1"
 description = "passive checker of Python programs"
@@ -1585,4 +1597,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "fd062126148099c4fb3ee952efe4f62b6c18f3b539b0a73cee3e4bd390623151"
+content-hash = "38a7f019a7902a6fd5399d09f6b30b18c2fafcd3e16b9107bd09c052c6a07860"
