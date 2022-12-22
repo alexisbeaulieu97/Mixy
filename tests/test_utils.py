@@ -1,7 +1,7 @@
 from typing import Any
 
 import pytest
-from pyfakefs.fake_filesystem_unittest import FakeFilesystem
+from pyfakefs.fake_filesystem_unittest import FakeFilesystem  # type: ignore
 
 from supertemplater.utils import extract_repo_name, is_git_url, unique_list
 
