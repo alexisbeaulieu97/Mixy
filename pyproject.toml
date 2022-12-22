@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "supertemplater"
-version = "0.1.0"
+version = "0.0.0"
 description = ""
 authors = ["Alexis Beaulieu <alexisbeaulieu97@gmail.com>"]
 license = "MIT"
@@ -37,8 +37,8 @@ version_variable = ["supertemplater/__init__.py:__version__"]
 version_toml = ["pyproject.toml:tool.poetry.version"]
 version_pattern = ["VERSION:{version}"]
 branch = "main"
-upload_to_repository = false
-upload_to_release = false
+upload_to_repository = true
+upload_to_release = true
 build_command = "pip install poetry && poetry build"
 
 [build-system]
