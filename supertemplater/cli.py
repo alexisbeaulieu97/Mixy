@@ -1,6 +1,7 @@
+import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import typer
 import yaml
@@ -12,6 +13,8 @@ from supertemplater.context import Context
 from supertemplater.models import Config, Project
 from supertemplater.models.config import config
 from supertemplater.prompts import PromptResolver
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 console = Console()
@@ -40,7 +43,7 @@ def resolve_missing_variables(config: Project) -> dict[str, Any]:
 
 
 @app.command()
-def create(project_file: Path):
+def create(project_file: Path, context: Optional[Path] = None):
     project = get_project(project_file)
 
     if not project.is_empty:
@@ -48,10 +51,15 @@ def create(project_file: Path):
         raise Exception
 
     update_config(project.config)
-    context = Context(env=Environment(undefined=StrictUndefined, **config.jinja.dict()))
-    context.update(**resolve_missing_variables(project))
-    project = project.render(context)
-    project.resolve_dependencies(context)
+    ctx = Context(env=Environment(undefined=StrictUndefined, **config.jinja.dict()))
+
+    if context is not None:
+        context_data: dict[str, Any] = yaml.safe_load(context.read_text())
+        ctx.update(**context_data)
+    else:
+        ctx.update(**resolve_missing_variables(project))
+    project = project.render(ctx)
+    project.resolve_dependencies(ctx)
 
 
 def main() -> None:
