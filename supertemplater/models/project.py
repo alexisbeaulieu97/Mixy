@@ -3,7 +3,7 @@ from typing import Union
 
 from pydantic import Field
 from typing_extensions import Annotated
-
+import shutil
 from supertemplater.context import Context
 
 from .base import RenderableBaseModel
@@ -42,3 +42,7 @@ class Project(RenderableBaseModel):
         self.base_dir.mkdir(exist_ok=True)
         for dependency in self.dependencies:
             dependency.resolve(self.base_dir, context)
+
+    def empty(self) -> None:
+        if self.exists:
+            shutil.rmtree(self.base_dir)

@@ -35,7 +35,9 @@ def get_project(config_file: Path) -> Project:
         # TODO handle error
         raise Exception
 
-    return Project(**yaml.safe_load(config_file.open()))
+    project_config = yaml.safe_load(config_file.open()) or {}
+
+    return Project(**project_config)
 
 
 def resolve_missing_variables(config: Project) -> dict[str, Any]:
@@ -43,18 +45,20 @@ def resolve_missing_variables(config: Project) -> dict[str, Any]:
 
 
 @app.command()
-def create(project_file: Path, context: Optional[Path] = None):
+def create(project_file: Path, context: Optional[Path] = None, force: Optional[bool] = False):
     project = get_project(project_file)
+    if force:
+        project.empty()
 
     if not project.is_empty:
         # TODO handle error
-        raise Exception
+        raise Exception("The project is not empty. Please empty it or use the --force option.")
 
     update_config(project.config)
     ctx = Context(env=Environment(undefined=StrictUndefined, **config.jinja.dict()))
 
     if context is not None:
-        context_data: dict[str, Any] = yaml.safe_load(context.read_text())
+        context_data: dict[str, Any] = yaml.safe_load(context.read_text()) or {}
         ctx.update(**context_data)
     else:
         ctx.update(**resolve_missing_variables(project))
