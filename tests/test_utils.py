@@ -1,72 +1,138 @@
-from typing import Any
+from pathlib import Path
+from typing import Any, Iterator
 
 import pytest
 from pyfakefs.fake_filesystem_unittest import FakeFilesystem  # type: ignore
 
-from supertemplater.utils import extract_repo_name, is_git_url, unique_list
-
-extract_repo_name_cases = [
-    ("https://github.com/user/repo.git", "repo"),
-    ("https://github.com/user/repo-with-dashes.git", "repo-with-dashes"),
-    ("https://github.com/user/repo_with_underscores.git", "repo_with_underscores"),
-    ("https://github.com/user/repo.with.periods.git", "repo.with.periods"),
-    (
-        "https://github.com/user/repo-with_periods.and-dashes.git",
-        "repo-with_periods.and-dashes",
-    ),
-    (
-        "https://github.com/user/repo-with-a-long-string-of-dashes------------.git",
-        "repo-with-a-long-string-of-dashes------------",
-    ),
-    ("https://github.com/user/repoWithMixedCase.git", "repoWithMixedCase"),
-    (
-        "https://github.com/user/repo-with-1-2-3-and_special-characters.git",
-        "repo-with-1-2-3-and_special-characters",
-    ),
-    (
-        "https://github.com/user/repo.with.multiple.periods.git",
-        "repo.with.multiple.periods",
-    ),
-]
-
-is_git_url_cases = [
-    ("git@github.com:user/repo.git", True),
-    ("ssh://user@server/project.git", True),
-    ("ssh://server/project.git", True),
-    ("http://github.com/user/repo.git", True),
-    ("https://github.com/user/repo.git", True),
-    ("ftp://github.com/user/repo.git", False),
-    ("", False),
-    ("   ", False),
-    ("!@#$%^&*()", False),
-    ("http://github.com/user/repo-1-2-3-with_special-characters.git", True),
-    ("https://github.com/user/organization/repo.git", True),
-    ("https://github.com/user/repo-with-a-long-string-of-dashes------------.git", True),
-]
-
-test_unique_list_cases: list[Any] = [
-    ([1, 2, 3, 1, 2], [1, 2, 3]),
-    (["a", "b", "a", "c"], ["a", "b", "c"]),
-    ([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]),
-    ([], []),
-    ([1], [1]),
-    (["a", "b", "b", "c", "c"], ["a", "b", "c"]),
-    (["a", "b", "c", "d", "e", "f"], ["a", "b", "c", "d", "e", "f"]),
-    ([1, 1, 1, 1, 1, 1], [1]),
-    (["a", "a", "a", "a", "a", "a"], ["a"]),
-]
+from supertemplater.utils import (extract_repo_name, is_git_url, starts_with_option,
+                                  unique_list, is_in_lists)
 
 
-@pytest.mark.parametrize("url, expected", extract_repo_name_cases)
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("https://github.com/user/repo.git", "repo"),
+        ("https://github.com/user/repo-with-dashes.git", "repo-with-dashes"),
+        ("https://github.com/user/repo_with_underscores.git", "repo_with_underscores"),
+        ("https://github.com/user/repo.with.periods.git", "repo.with.periods"),
+        (
+            "https://github.com/user/repo-with_periods.and-dashes.git",
+            "repo-with_periods.and-dashes",
+        ),
+        (
+            "https://github.com/user/repo-with-a-long-string-of-dashes------------.git",
+            "repo-with-a-long-string-of-dashes------------",
+        ),
+        ("https://github.com/user/repoWithMixedCase.git", "repoWithMixedCase"),
+        (
+            "https://github.com/user/repo-with-1-2-3-and_special-characters.git",
+            "repo-with-1-2-3-and_special-characters",
+        ),
+        (
+            "https://github.com/user/repo.with.multiple.periods.git",
+            "repo.with.multiple.periods",
+        ),
+    ],
+)
 def test_extract_repo_name(url: str, expected: str) -> None:
     assert extract_repo_name(url) == expected
 
 
-@pytest.mark.parametrize("url, expected", is_git_url_cases)
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("git@github.com:user/repo.git", True),
+        ("ssh://user@server/project.git", True),
+        ("ssh://server/project.git", True),
+        ("http://github.com/user/repo.git", True),
+        ("https://github.com/user/repo.git", True),
+        ("ftp://github.com/user/repo.git", False),
+        ("", False),
+        ("   ", False),
+        ("!@#$%^&*()", False),
+        ("http://github.com/user/repo-1-2-3-with_special-characters.git", True),
+        ("https://github.com/user/organization/repo.git", True),
+        (
+            "https://github.com/user/repo-with-a-long-string-of-dashes------------.git",
+            True,
+        ),
+    ],
+)
 def test_is_git_url(url: str, expected: bool) -> None:
     assert is_git_url(url) == expected
 
 
-@pytest.mark.parametrize("l, expected", test_unique_list_cases)
-def test_unique_list(fs: FakeFilesystem, l: list[Any], expected: list[Any]):
+@pytest.mark.parametrize(
+    "item, options, expected", [("abc", ["a"], True), ("abc", ["b"], False)]
+)
+def test_starts_with_option(item: str, options: list[str], expected: bool):
+    assert starts_with_option(item, options) == expected
+
+
+@pytest.mark.parametrize(
+    "l, expected",
+    [
+        ([1, 2, 3, 1, 2], [1, 2, 3]),
+        (["a", "b", "a", "c"], ["a", "b", "c"]),
+        ([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]),
+        ([], []),
+        ([1], [1]),
+        (["a", "b", "b", "c", "c"], ["a", "b", "c"]),
+        (["a", "b", "c", "d", "e", "f"], ["a", "b", "c", "d", "e", "f"]),
+        ([1, 1, 1, 1, 1, 1], [1]),
+        (["a", "a", "a", "a", "a", "a"], ["a"]),
+    ],
+)
+def test_unique_list(l: list[Any], expected: list[Any]):
     assert sorted(unique_list(l)) == sorted(expected)
+
+
+@pytest.mark.parametrize("expected", [])
+def test_get_all_files(fs: FakeFilesystem, expected: list[Path]):
+    # TODO tests
+    ...
+
+
+@pytest.mark.parametrize("expected", [])
+def test_is_empty_directory(fs: FakeFilesystem, expected: bool):
+    # TODO tests
+    ...
+
+
+@pytest.mark.parametrize("expected", [])
+def test_join_local_path(fs: FakeFilesystem, expected: Path):
+    # TODO tests
+    ...
+
+
+@pytest.mark.parametrize("expected", [])
+def test_get_directory_contents(fs: FakeFilesystem, expected: list[Path]):
+    # TODO tests
+    ...
+
+
+@pytest.mark.parametrize("expected", [])
+def test_get_nested_values(expected: Iterator[Any]):
+    # TODO tests
+    ...
+
+
+@pytest.mark.parametrize("expected", [])
+def test_get_objects_of_type(expected: list[Any]):
+    # TODO tests
+    ...
+
+
+@pytest.mark.parametrize("item, lists, expected", [
+    ("a", [["a", "b", "c"]], True),
+    ("a", [["a", "b"], ["c"]], True),
+    ("c", [["a", "b"], ["c"]], True),
+    ("c", [[], ["c"]], True),
+    ("x", [["a", "b"], ["c"]], False),
+    ([1, 2], [[[1, 2], [3, 4]], [[5, 6], [7, 8]]], True),
+    ([5, 6], [[[1, 2], [3, 4]], [[5, 6], [7, 8]]], True),
+    ([9, 10], [[[1, 2], [3, 4]], [[5, 6], [7, 8]]], False),
+    ([1, 3], [[[1, 2], [3, 4]], [[5, 6], [7, 8]]], False)
+])
+def test_is_in_list(item: Any, lists: list[list[Any]], expected: bool):
+    assert is_in_lists(item, *lists) == expected
