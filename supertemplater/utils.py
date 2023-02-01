@@ -35,8 +35,8 @@ def is_git_url(url: str) -> bool:
 
 def starts_with_option(s: str, options: List[str]) -> bool:
     """
-    Given a string `s` and a list of strings `options`, returns a boolean indicating whether any of the strings in `options`
-    starts with `s`.
+    Given a string `s` and a list of strings `options`, returns a boolean
+    indicating whether any of the strings in `options` starts with `s`.
 
     Args:
         s (str): A string to check.
@@ -72,7 +72,8 @@ def get_all_files(
     base_dir: Path, dir_ignores: Optional[list[str]] = None
 ) -> List[Path]:
     """
-    This function recursively traverses the directory tree rooted at `base_dir` and returns a list of all files in the tree.
+    This function recursively traverses the directory tree rooted
+    at `base_dir`and returns a list of all files in the tree.
     It ignores any subdirectories whose names appear in the `dir_ignores` list.
 
     Args:
@@ -80,7 +81,8 @@ def get_all_files(
         dir_ignores (Optional[List[str]]): A list of directory names to ignore.
 
     Returns:
-        List[Path]: A list of all files in the directory tree rooted at `base_dir`, ignoring any subdirectories whose names appear in `dir_ignores`.
+        List[Path]: A list of all files in the directory tree rooted at `base_dir`,
+        ignoring any subdirectories whose names appear in `dir_ignores`.
     """
     if dir_ignores is None:
         dir_ignores = []
@@ -95,7 +97,8 @@ def get_all_files(
 
 
 def is_empty_directory(path: Path) -> bool:
-    """Determines if a directory is empty.
+    """
+    Determines if a directory is empty.
 
     Args:
         path (Path): The path of the directory to check.
@@ -108,7 +111,9 @@ def is_empty_directory(path: Path) -> bool:
 
 def join_local_path(a: Path, b: Path) -> Path:
     """
-    This function combines two local file paths, `a` and `b`, and returns a new `Path` object that is the result of appending `b` to `a` after making `b` relative to the root path `/`.
+    This function combines two local file paths, `a` and `b`,
+    and returns a new `Path` object that is the result of appending `b` to `a`
+    after making `b` relative to the root path `/`.
 
     Args:
         a (Path): The first path to join.
@@ -131,7 +136,8 @@ def get_directory_contents(
         d (Path): The directory to retrieve the contents of.
 
     Returns:
-        A list of `Path` objects, each representing a file or directory contained within `d`.
+        A list of `Path` objects, each representing
+        a file or directory contained within `d`.
 
     Raises:
         ValueError: If the given `Path` object does not represent a valid directory.
@@ -149,7 +155,8 @@ def get_directory_contents(
 
 def get_nested_values(d: Mapping[Any, Any]) -> Iterator[Any]:
     """
-    This function recursively traverses a nested dictionary and returns a generator that yields all values in the dictionary.
+    This function recursively traverses a nested dictionary and
+    returns a generator that yields all values in the dictionary.
 
     Args:
         d (Mapping): The dictionary to traverse.
