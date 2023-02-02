@@ -1,12 +1,17 @@
+import os
 from pathlib import Path
 from typing import Any, Iterator
+from uuid import uuid4
 
 import pytest
 from pyfakefs.fake_filesystem_unittest import FakeFilesystem  # type: ignore
 
-from supertemplater.utils import (extract_repo_name, is_git_url, starts_with_option,
-                                  unique_list, is_in_lists)
+from supertemplater.utils import (extract_repo_name, get_all_files,
+                                  get_directory_contents, is_empty_directory,
+                                  is_git_url, is_in_lists, join_local_path,
+                                  starts_with_option, unique_list)
 
+TEST_DIR = Path("/tmp/supertemplater_test")
 
 @pytest.mark.parametrize(
     "url, expected",
@@ -87,22 +92,50 @@ def test_unique_list(l: list[Any], expected: list[Any]):
     assert sorted(unique_list(l)) == sorted(expected)
 
 
-@pytest.mark.parametrize("expected", [])
-def test_get_all_files(fs: FakeFilesystem, expected: list[Path]):
-    # TODO tests
-    ...
+@pytest.mark.parametrize("files, expected", [
+    (["file1.txt"], [TEST_DIR.joinpath("file1.txt")]),
+    (["file1.txt", "file2.txt"], [TEST_DIR.joinpath("file1.txt"), TEST_DIR.joinpath("file2.txt")]),
+    (["dir1/file1.txt"], [TEST_DIR.joinpath("dir1/file1.txt")]),
+    (["dir1/file1.txt", "dir1/file2.txt"], [TEST_DIR.joinpath("dir1/file1.txt"), TEST_DIR.joinpath("dir1/file2.txt")]),
+    (["dir1/dir2/file1.txt"], [TEST_DIR.joinpath("dir1/dir2/file1.txt")]),
+    ([], []),
+])
+def test_get_all_files(fs: FakeFilesystem, files: list[Path], expected: list[Path]):
+    os.makedirs(TEST_DIR)
+
+    for f in files:
+        fs.create_file(TEST_DIR.joinpath(f), create_missing_dirs=True)
+
+    assert get_all_files(TEST_DIR) == expected
 
 
-@pytest.mark.parametrize("expected", [])
-def test_is_empty_directory(fs: FakeFilesystem, expected: bool):
-    # TODO tests
-    ...
+@pytest.mark.parametrize("files, expected", [
+    (["file1.txt"], False),
+    (["file1.txt", "file2.txt"], False),
+    (["dir1/file1.txt"], False),
+    (["dir1/file1.txt", "dir1/file2.txt"], False),
+    (["dir1/dir2/file1.txt"], False),
+    (["dir1/dir2/"], False),
+    (["file1.txt", "dir1/"], False),
+    ([], True),
+])
+def test_is_empty_directory(fs: FakeFilesystem, files: list[Path], expected: bool):
+    os.makedirs(TEST_DIR)
+
+    for f in files:
+        fs.create_file(TEST_DIR.joinpath(f), create_missing_dirs=True)
+
+    assert is_empty_directory(TEST_DIR) == expected
 
 
-@pytest.mark.parametrize("expected", [])
-def test_join_local_path(fs: FakeFilesystem, expected: Path):
-    # TODO tests
-    ...
+@pytest.mark.parametrize("a, b, expected", [
+    (Path("/home/user/dir"), Path("/usr/local/bin"), Path("/home/user/dir/usr/local/bin")),
+    (Path("/"), Path("/usr/local/bin"), Path("/usr/local/bin")),
+    (Path("/home/user"), Path("/"), Path("/home/user")),
+    (Path("/home/user"), Path("/usr/local"), Path("/home/user/usr/local"))
+])
+def test_join_local_path(a: Path, b: Path, expected: Path):
+    assert join_local_path(a, b) == expected
 
 
 @pytest.mark.parametrize("expected", [])
