@@ -1,12 +1,9 @@
 from typing import Any
 
 import pytest
-from pyfakefs.fake_filesystem_unittest import FakeFilesystem  # type: ignore
-
-from supertemplater.utils import extract_repo_name, is_git_url, unique_list
-from supertemplater.context import Context
 from jinja2.exceptions import UndefinedError
 
+from supertemplater.context import Context
 
 TEST_DATA = {"name": "John", "age": 30}
 
