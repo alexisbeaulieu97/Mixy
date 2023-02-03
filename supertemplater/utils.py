@@ -174,12 +174,12 @@ def get_nested_values(d: Mapping[Any, Any]) -> Iterator[Any]:
 def get_objects_of_type(
     o: Any, types: tuple[type], ignores: tuple[type] = tuple()
 ) -> list[Any]:
-    """Returns a list of objects of the given type within a nested structure.
+    """Returns a list of objects of the given types within a nested structure.
 
     Args:
         o (Any): The object to search for objects of the given type.
         t (type): The type to search for.
-        ignores (tuple[type]): The type to ignore.
+        ignores (tuple[type]): The types to ignore.
 
     Returns:
         List[Any]: A list of objects of the given type within the input object.
@@ -191,7 +191,9 @@ def get_objects_of_type(
         ['c', 'd']
     """
     objects: list[Any] = []
-    if isinstance(o, types) and not isinstance(o, ignores):
+    if isinstance(o, ignores):
+        return objects
+    elif isinstance(o, types):
         objects.append(o)
     elif isinstance(o, (list, tuple, set)):
         item: Any
