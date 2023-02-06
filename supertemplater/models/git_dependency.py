@@ -23,7 +23,7 @@ class GitDependency(RenderableBaseModel):
     @validator("src")
     def validate_src(cls, v: str) -> str:
         if not is_git_url(v):
-            raise ValueError(f"src must be a git url")
+            raise ValueError("src must be a git url")
         return v
 
     @cached_property

@@ -1,0 +1,10 @@
+[run]
+branch = True
+
+[report]
+show_missing = True
+omit =
+    **/models/*
+    **/protocols/*
+    **/cli.py
+    **/exceptions.py

@@ -9,7 +9,7 @@ _T = TypeVar("_T")
 class PromptResolver:
     def regular(self, var_name: str, default: Any) -> str:
         return typer.prompt(
-            typer.style(f"(regular)", fg=typer.colors.BRIGHT_MAGENTA, bold=True)
+            typer.style("(regular)", fg=typer.colors.BRIGHT_MAGENTA, bold=True)
             + " "
             + typer.style(var_name),
             default,
@@ -17,7 +17,7 @@ class PromptResolver:
 
     def multi(self, var_name: str, default: list[Any]) -> list[Any]:
         resp = typer.prompt(
-            typer.style(f"(list)", fg=typer.colors.BRIGHT_BLUE, bold=True)
+            typer.style("(list)", fg=typer.colors.BRIGHT_BLUE, bold=True)
             + " "
             + var_name,
             default=default,

@@ -28,6 +28,8 @@ pytest-cov = "^4.0.0"
 pylint = "^2.15.9"
 flake8 = "^6.0.0"
 pyfakefs = "^5.0.0"
+vulture = "^2.7"
+pytest-mock = "^3.10.0"
 
 [tool.poetry.scripts]
 supertemplater = "supertemplater.cli:main"
@@ -44,3 +46,7 @@ build_command = "pip install poetry && poetry build"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pylama]
+skip = "*/__init__.py"
+max_line_length = 120
