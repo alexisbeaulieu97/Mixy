@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from typing import Any, Optional, TypeVar
 
+from supertemplater.exceptions import InvalidChoiceError
 
 _T = TypeVar("_T")
+
 
 @dataclass
 class PreloadedResolver:
@@ -15,8 +17,9 @@ class PreloadedResolver:
 
     def _assert_type(self, var_value: Any, var_name: str, var_type: type) -> None:
         if not isinstance(var_value, var_type):
-            # TODO custom error
-            raise Exception(f"Variable '{var_name}' must be of type '{var_type.__name__}'")
+            raise TypeError(
+                f"Variable '{var_name}' must be of type '{var_type.__name__}'"
+            )
 
     def regular(self, var_name: str, default: Any) -> str:
         return self._get(var_name, default)
@@ -37,6 +40,5 @@ class PreloadedResolver:
     def choice(self, var_name: str, *choices: _T) -> _T:
         c = self._get(var_name)
         if c not in choices:
-            # TODO custom error
-            raise Exception("Choice does not exist")
+            raise InvalidChoiceError(c, choices)
         return c

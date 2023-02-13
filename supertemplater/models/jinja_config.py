@@ -1,7 +1,7 @@
-from .base import RenderableBaseModel
+from .base import BaseModel
 
 
-class JinjaConfig(RenderableBaseModel):
+class JinjaConfig(BaseModel):
     block_start_string: str = "{*"
     block_end_string: str = "*}"
     variable_start_string: str = "{@"
