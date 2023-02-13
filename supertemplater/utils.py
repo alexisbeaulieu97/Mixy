@@ -1,5 +1,7 @@
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterator, List, Mapping, Optional
+from zoneinfo import ZoneInfo
 
 from supertemplater.constants import GIT_PROTOCOLS_PREFIXES
 
@@ -221,3 +223,10 @@ def is_in_lists(item: Any, *lists: list[Any]) -> bool:
         if item in lst:
             return True
     return False
+
+
+def get_current_time(tz: ZoneInfo = ZoneInfo("localtime")) -> datetime:
+    dt = datetime.utcnow()
+    utc_tz = ZoneInfo("UTC")
+    utc_dt = dt.replace(tzinfo=utc_tz)
+    return utc_dt.astimezone(tz)

@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 from functools import cached_property
 from typing import Any, Self
 
@@ -30,3 +31,19 @@ class RenderableBaseModel(BaseModel):
             **json.loads(not_templated),
         }
         return self.__class__(**resolved)
+
+
+class NameBasedEnum(Enum):
+    @classmethod
+    def __get_validators__(cls):
+        cls.lookup = {v: k.value for v, k in cls.__members__.items()}
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        try:
+            return cls.lookup[v]
+        except KeyError:
+            raise ValueError(
+                f'"{v}" is invalid, valid options are: {[k for k in cls.lookup]}'
+            )
