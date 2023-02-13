@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v0.4.0 (2023-02-13)
+### Feature
+* Added logging in cli ([`6da3ca7`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/6da3ca733bfa62b5771bc4e19de9d71c10b2cb8e))
+
 ## v0.3.0 (2023-02-06)
 ### Feature
 * Added a 'variables' property in the Context class for ease of use ([`a6e8160`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/a6e81600da49fe1c347ad2c3123ac16e5bc0e060))
