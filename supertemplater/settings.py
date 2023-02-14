@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     class Config:
         env_file_encoding = "utf-8"
         env_prefix = "supertemplater_"
-        env_nested_delimiter = "__"
+        env_nested_delimiter = "_"
 
         @classmethod
         def customise_sources(
