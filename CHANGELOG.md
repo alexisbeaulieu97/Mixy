@@ -1,5 +1,10 @@
 <!--next-version-placeholder-->
 
+## v0.5.0 (2023-02-14)
+### Feature
+* BREAKING CHANGE (build trigger) ([`adfa4d8`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/adfa4d88dffa61e9529890cbebfdf0030429c588))
+* BREAKING CHANGE, (rebuild) ([`1996039`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/1996039211846ddd1720c30ffab68a1354b8764b))
+
 ## v0.4.2 (2023-02-14)
 ### Fix
 * Binaries get copied now instead of raising a UnicodeDecodeError ([`4b30be5`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/4b30be5da76e856208b31baad1aeb2b538802f0b))
