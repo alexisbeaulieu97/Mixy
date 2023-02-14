@@ -1,6 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterator, List, Mapping, Optional
+import os
 from zoneinfo import ZoneInfo
 
 from supertemplater.constants import GIT_PROTOCOLS_PREFIXES

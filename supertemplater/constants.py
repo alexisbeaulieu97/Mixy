@@ -1,14 +1,14 @@
 from pathlib import Path
 
-# ENV
+# HOME
 SUPERTEMPLATER_HOME = "SUPERTEMPLATER_HOME"
-SUPERTEMPLATER_CONFIG = "SUPERTEMPLATER_CONFIG"
+DEFAULT_HOME_DEST = Path.home().joinpath(".supertemplater")
 
-# CONFIG
-HOME_DEST = Path.home().joinpath(".supertemplater")
-CONFIG_DEST = HOME_DEST.joinpath("config.yaml")
-LOGS_DEST = HOME_DEST.joinpath("logs")
-LOGS_FORMAT = "%(asctime)s | %(name)s | %(levelname)s : %(message)s"
+
+# CONFIGURATION FILES
+CONFIG_FILE = "config.yml"
+LOGGING_CONFIG_FILE = "logging.yml"
+
 
 # MISC
 GIT_PROTOCOLS_PREFIXES = ["http://", "https://", "git@", "ssh://"]
