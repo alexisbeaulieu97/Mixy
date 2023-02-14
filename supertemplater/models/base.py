@@ -36,13 +36,15 @@ class RenderableBaseModel(BaseModel):
 class NameBasedEnum(Enum):
     @classmethod
     def __get_validators__(cls):
-        cls.name_lookup = {v: k.value for v, k in cls.__members__.items()}
+        cls.name_lookup = {v: k for v, k in cls.__members__.items()}
+        cls.value_lookup = {k.value: k for _, k in cls.__members__.items()}
         yield cls.validate
 
     @classmethod
     def validate(cls, v):
         try:
-            if v in cls.name_lookup.values():
+            if v in cls.value_lookup:
+                print(v)
                 return v
             return cls.name_lookup[v]
         except KeyError:

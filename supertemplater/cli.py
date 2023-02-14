@@ -6,27 +6,25 @@ import typer
 import yaml
 from jinja2 import Environment, StrictUndefined
 
-from supertemplater.constants import CONFIG_DEST, SUPERTEMPLATER_CONFIG
 from supertemplater.context import Context
-from supertemplater.exceptions import (MissingProjectConfigurationError,
-                                       ProjectAlreadyExistsError)
+from supertemplater.exceptions import (
+    MissingProjectConfigurationError,
+    ProjectAlreadyExistsError,
+)
 from supertemplater.models import Config, Project
 from supertemplater.models.config import config
 from supertemplater.preloaded_resolver import PreloadedResolver
 from supertemplater.prompt_resolver import PromptResolver
 from supertemplater.protocols.variable_resolver import VariableResolver
+from supertemplater.settings import settings
+from supertemplater.builders.logger_builder import LoggerBuilder
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
-logger = config.logging.get_logger(__name__)
+logger = LoggerBuilder.with_settings(settings.logs, __name__)
 
 
 def update_config(project_config: Config) -> None:
-    config_location = Path(os.getenv(SUPERTEMPLATER_CONFIG, CONFIG_DEST))
-    user_config = (
-        Config.load(config_location) if config_location.is_file() else Config()
-    )
-    logger.info("Updating the context with user configuration if present")
-    config.update(user_config)
+    config = Config()
     logger.info("Updating the context with project configuration")
     config.update(project_config)
 
