@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v0.4.2 (2023-02-14)
+### Fix
+* Binaries get copied now instead of raising a UnicodeDecodeError ([`4b30be5`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/4b30be5da76e856208b31baad1aeb2b538802f0b))
+
 ## v0.4.1 (2023-02-14)
 ### Fix
 * Allowed to use values or names in name based enums ([`0f8b334`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/0f8b3348246e25532828241add1944c24a5145c0))
