@@ -36,14 +36,16 @@ class RenderableBaseModel(BaseModel):
 class NameBasedEnum(Enum):
     @classmethod
     def __get_validators__(cls):
-        cls.lookup = {v: k.value for v, k in cls.__members__.items()}
+        cls.name_lookup = {v: k.value for v, k in cls.__members__.items()}
         yield cls.validate
 
     @classmethod
     def validate(cls, v):
         try:
-            return cls.lookup[v]
+            if v in cls.name_lookup.values():
+                return v
+            return cls.name_lookup[v]
         except KeyError:
             raise ValueError(
-                f'"{v}" is invalid, valid options are: {[k for k in cls.lookup]}'
+                f'"{v}" is invalid, valid options are: {[k for k in cls.name_lookup]}'
             )
