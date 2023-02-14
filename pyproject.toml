@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "supertemplater"
-version = "0.4.0"
+version = "0.4.1"
 description = ""
 authors = ["Alexis Beaulieu <alexisbeaulieu97@gmail.com>"]
 license = "MIT"

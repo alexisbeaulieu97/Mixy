@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v0.4.1 (2023-02-14)
+### Fix
+* Allowed to use values or names in name based enums ([`0f8b334`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/0f8b3348246e25532828241add1944c24a5145c0))
+
 ## v0.4.0 (2023-02-13)
 ### Feature
 * Added logging in cli ([`6da3ca7`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/6da3ca733bfa62b5771bc4e19de9d71c10b2cb8e))
