@@ -8,10 +8,8 @@ from jinja2 import Environment, StrictUndefined
 
 from supertemplater.constants import CONFIG_DEST, SUPERTEMPLATER_CONFIG
 from supertemplater.context import Context
-from supertemplater.exceptions import (
-    MissingProjectConfigurationError,
-    ProjectAlreadyExistsError,
-)
+from supertemplater.exceptions import (MissingProjectConfigurationError,
+                                       ProjectAlreadyExistsError)
 from supertemplater.models import Config, Project
 from supertemplater.models.config import config
 from supertemplater.preloaded_resolver import PreloadedResolver
