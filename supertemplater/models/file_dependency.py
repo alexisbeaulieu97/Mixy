@@ -17,6 +17,10 @@ class FileDependency(RenderableBaseModel):
     def resolve(self, into_dir: Path, context: Context) -> None:
         abs_dest = join_local_path(into_dir, self.dest)
         abs_dest.parent.mkdir(exist_ok=True, parents=True)
-        content = self.src.read_text()
-        resolved = context.render(content)
-        abs_dest.write_text(resolved)
+        try:
+            content = self.src.read_text()
+            resolved = context.render(content)
+            abs_dest.write_text(resolved)
+        except UnicodeDecodeError:
+            content = self.src.read_bytes()
+            abs_dest.write_bytes(content)
