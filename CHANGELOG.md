@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v0.6.0 (2023-02-16)
+### Feature
+* Added settings override levels (default, global, project) ([`07c01e0`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/07c01e0a259139486348d5254aeb688b3f43b74a))
+
 ## v0.5.0 (2023-02-14)
 ### Feature
 * BREAKING CHANGE (build trigger) ([`adfa4d8`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/adfa4d88dffa61e9529890cbebfdf0030429c588))
