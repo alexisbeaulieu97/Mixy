@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Any
 
@@ -6,27 +5,25 @@ import typer
 import yaml
 from jinja2 import Environment, StrictUndefined
 
+from supertemplater.builders.logger_builder import LoggerBuilder
 from supertemplater.context import Context
 from supertemplater.exceptions import (
     MissingProjectConfigurationError,
     ProjectAlreadyExistsError,
 )
-from supertemplater.models import Config, Project
-from supertemplater.models.config import config
+from supertemplater.models import Project
 from supertemplater.preloaded_resolver import PreloadedResolver
 from supertemplater.prompt_resolver import PromptResolver
 from supertemplater.protocols.variable_resolver import VariableResolver
-from supertemplater.settings import settings
-from supertemplater.builders.logger_builder import LoggerBuilder
+from supertemplater.settings import Settings, settings
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 logger = LoggerBuilder.with_settings(settings.logs, __name__)
 
 
-def update_config(project_config: Config) -> None:
-    config = Config()
-    logger.info("Updating the context with project configuration")
-    config.update(project_config)
+def update_settings(project_settings: Settings) -> None:
+    logger.info("Updating the settings with project settings")
+    settings.update(project_settings)
 
 
 def get_project(config_file: Path) -> Project:
@@ -58,7 +55,7 @@ def create(
     ),
 ):
     try:
-        logger.info(f"Creating the project using: {project_file}")
+        logger.info(f"Creating the project using: {project_file.absolute()}")
         project = get_project(project_file)
 
         if force:
@@ -68,8 +65,10 @@ def create(
         if not project.is_empty:
             raise ProjectAlreadyExistsError(project.base_dir)
 
-        update_config(project.config)
-        ctx = Context(env=Environment(undefined=StrictUndefined, **config.jinja.dict()))
+        update_settings(project.settings)
+        ctx = Context(
+            env=Environment(undefined=StrictUndefined, **settings.jinja.dict())
+        )
 
         if context is not None:
             logger.info(f"Importing the provided context: {context}")

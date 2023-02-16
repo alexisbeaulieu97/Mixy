@@ -1,13 +1,14 @@
+import shutil
 from pathlib import Path
 from typing import Union
 
 from pydantic import Field
 from typing_extensions import Annotated
-import shutil
+
 from supertemplater.context import Context
+from supertemplater.settings import Settings
 
 from .base import RenderableBaseModel
-from .config import Config
 from .directory_dependency import DirectoryDependency
 from .file_dependency import FileDependency
 from .git_dependency import GitDependency
@@ -20,12 +21,12 @@ ProjectDependency = Annotated[
 
 
 class Project(RenderableBaseModel):
-    _RENDERABLE_EXCLUDES = {"config"}
+    _RENDERABLE_EXCLUDES = {"settings"}
 
     dependencies: list[ProjectDependency]
     base_dir: Path
 
-    config: Config = Config()
+    settings: Settings = Settings()
     variables: ProjectVariables = ProjectVariables()
 
     @property

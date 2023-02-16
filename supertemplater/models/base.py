@@ -6,12 +6,24 @@ from typing import Any, Self
 from pydantic import BaseModel as BM
 
 from supertemplater.context import Context
+from supertemplater.protocols import Updatable
 
 
 class BaseModel(BM):
+    def update(self, data: Self) -> None:
+        diff = data.dict(exclude_unset=True).keys()
+        for k in diff:
+            value = getattr(self, k)
+            new_value = getattr(data, k)
+            if isinstance(value, Updatable):
+                value.update(new_value)
+            else:
+                setattr(self, k, new_value)
+
     class Config:
         underscore_attrs_are_private = True
         keep_untouched = (cached_property,)  # type: ignore
+        validate_assignment = True
 
 
 class RenderableBaseModel(BaseModel):
@@ -36,18 +48,19 @@ class RenderableBaseModel(BaseModel):
 class NameBasedEnum(Enum):
     @classmethod
     def __get_validators__(cls):
-        cls.name_lookup = {v: k for v, k in cls.__members__.items()}
-        cls.value_lookup = {k.value: k for _, k in cls.__members__.items()}
+        cls.name_lookup = {k: v for k, v in cls.__members__.items()}
+        cls.value_lookup = {v.value: v for _, v in cls.__members__.items()}
         yield cls.validate
 
     @classmethod
     def validate(cls, v):
-        try:
-            if v in cls.value_lookup:
-                print(v)
-                return v
+        if isinstance(v, cls):
+            return v
+        if v in cls.value_lookup:
+            return cls.value_lookup[v]
+        if v in cls.name_lookup:
             return cls.name_lookup[v]
-        except KeyError:
-            raise ValueError(
-                f'"{v}" is invalid, valid options are: {[k for k in cls.name_lookup]}'
-            )
+
+        raise ValueError(
+            f'"{v}" is invalid, valid options are: {[k for k in cls.name_lookup]}'
+        )

@@ -21,9 +21,13 @@ class LoggerBuilder:
     ) -> logging.Logger:
         builder = LoggerBuilder(name, level)
         if settings.file_level != LogLevel.DISABLED:
-            builder.with_file_logging(settings.file_dest, settings.file_level, settings.logging_format)
+            builder.with_file_logging(
+                settings.file_dest, settings.file_level, settings.logging_format
+            )
         if settings.console_level != LogLevel.DISABLED:
-            builder.with_console_logging(settings.console_level, settings.logging_format)
+            builder.with_console_logging(
+                settings.console_level, settings.logging_format
+            )
         return builder.build()
 
     def _configure_handler(

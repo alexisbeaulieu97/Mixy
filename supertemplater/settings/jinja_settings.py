@@ -1,7 +1,7 @@
-from .base import BaseModel
+from supertemplater.models.base import BaseModel
 
 
-class JinjaConfig(BaseModel):
+class JinjaSettings(BaseModel):
     block_start_string: str = "{*"
     block_end_string: str = "*}"
     variable_start_string: str = "{@"

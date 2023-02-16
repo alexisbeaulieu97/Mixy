@@ -1,10 +1,14 @@
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterator, List, Mapping, Optional
-import os
 from zoneinfo import ZoneInfo
 
-from supertemplater.constants import GIT_PROTOCOLS_PREFIXES
+from supertemplater.constants import (
+    DEFAULT_HOME_DEST,
+    GIT_PROTOCOLS_PREFIXES,
+    SUPERTEMPLATER_HOME,
+)
 
 
 def extract_repo_name(url: str) -> str:
@@ -231,3 +235,7 @@ def get_current_time(tz: ZoneInfo = ZoneInfo("localtime")) -> datetime:
     utc_tz = ZoneInfo("UTC")
     utc_dt = dt.replace(tzinfo=utc_tz)
     return utc_dt.astimezone(tz)
+
+
+def get_home() -> Path:
+    return Path(os.getenv(SUPERTEMPLATER_HOME, DEFAULT_HOME_DEST))
