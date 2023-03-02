@@ -26,13 +26,13 @@ def update_settings(project_settings: Settings) -> None:
     settings.update(project_settings)
 
 
-def get_project(config_file: Path) -> Project:
+def get_project(destination: Path, config_file: Path) -> Project:
     if not config_file.is_file():
         raise MissingProjectConfigurationError(config_file)
 
     logger.info(f"Reading the project from {config_file}")
     project_config = yaml.safe_load(config_file.open()) or {}
-    return Project(**project_config)
+    return Project(destination=destination, **project_config)
 
 
 def resolve_missing_variables(
@@ -44,6 +44,7 @@ def resolve_missing_variables(
 @app.command()
 def create(
     project_file: Path,
+    destination: Path,
     context: Path = typer.Option(
         None,
         "--context",
@@ -56,14 +57,15 @@ def create(
 ):
     try:
         logger.info(f"Creating the project using: {project_file.absolute()}")
-        project = get_project(project_file)
+        project = get_project(destination, project_file)
+        project.destination = destination
 
         if force:
             logger.info("The force option was used, emptying the project")
             project.empty()
 
         if not project.is_empty:
-            raise ProjectAlreadyExistsError(project.base_dir)
+            raise ProjectAlreadyExistsError(project.destination)
 
         update_settings(project.settings)
         ctx = Context(
