@@ -6,6 +6,7 @@ from git.repo import Repo
 from pydantic import validator
 
 from supertemplater.context import Context
+from supertemplater.settings import settings
 from supertemplater.utils import extract_repo_name, get_home, is_git_url
 
 from .base import RenderableBaseModel
@@ -31,8 +32,8 @@ class GitDependency(RenderableBaseModel):
 
     @cached_property
     def repo(self) -> Repo:
-        if get_home().joinpath(self.name).is_dir():
-            return Repo(get_home().joinpath(self.name))
+        if settings.dependencies_home.joinpath(self.name).is_dir():
+            return Repo(settings.dependencies_home.joinpath(self.name))
 
         return self._clone()
 
@@ -63,8 +64,8 @@ class GitDependency(RenderableBaseModel):
 
     def _clone(self) -> Repo:
         if self.version is None:
-            return Repo.clone_from(self.src, get_home().joinpath(self.name), depth=1)  # type: ignore
-        return Repo.clone_from(self.src, get_home().joinpath(self.name), branch=self.version, depth=1)  # type: ignore
+            return Repo.clone_from(self.src, settings.dependencies_home.joinpath(self.name), depth=1)  # type: ignore
+        return Repo.clone_from(self.src, settings.dependencies_home.joinpath(self.name), branch=self.version, depth=1)  # type: ignore
 
     def resolve(self, into_dir: Path, context: Context) -> None:
         if self.needs_update:

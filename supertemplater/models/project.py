@@ -7,6 +7,7 @@ from typing_extensions import Annotated
 
 from supertemplater.context import Context
 from supertemplater.settings import Settings
+from supertemplater.utils import clear_directory
 
 from .base import RenderableBaseModel
 from .directory_dependency import DirectoryDependency
@@ -46,4 +47,4 @@ class Project(RenderableBaseModel):
 
     def empty(self) -> None:
         if self.exists:
-            shutil.rmtree(self.destination)
+            clear_directory(self.destination)

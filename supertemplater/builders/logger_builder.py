@@ -22,7 +22,7 @@ class LoggerBuilder:
         builder = LoggerBuilder(name, level)
         if settings.file_level != LogLevel.DISABLED:
             builder.with_file_logging(
-                settings.file_dest, settings.file_level, settings.logging_format
+                settings.file_path, settings.file_level, settings.logging_format
             )
         if settings.console_level != LogLevel.DISABLED:
             builder.with_console_logging(

@@ -7,15 +7,14 @@ from jinja2 import Environment, StrictUndefined
 
 from supertemplater.builders.logger_builder import LoggerBuilder
 from supertemplater.context import Context
-from supertemplater.exceptions import (
-    MissingProjectConfigurationError,
-    ProjectAlreadyExistsError,
-)
+from supertemplater.exceptions import (MissingProjectConfigurationError,
+                                       ProjectAlreadyExistsError)
 from supertemplater.models import Project
 from supertemplater.preloaded_resolver import PreloadedResolver
 from supertemplater.prompt_resolver import PromptResolver
 from supertemplater.protocols.variable_resolver import VariableResolver
 from supertemplater.settings import Settings, settings
+from supertemplater.utils import clear_directory, get_home
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 logger = LoggerBuilder.with_settings(settings.logs, __name__)
@@ -41,7 +40,7 @@ def resolve_missing_variables(
     return config.variables.resolve(resolver)
 
 
-@app.command()
+@app.command(help="Create a new project.")
 def create(
     project_file: Path,
     destination: Path,
@@ -93,6 +92,11 @@ def create(
         raise e
     except Exception:
         logger.exception("Project creation failed")
+
+
+@app.command(help="Clear the program cache.")
+def clear():
+    clear_directory(settings.cache_home)
 
 
 def main() -> None:
