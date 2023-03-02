@@ -1,14 +1,12 @@
 import os
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterator, List, Mapping, Optional
 from zoneinfo import ZoneInfo
 
-from supertemplater.constants import (
-    DEFAULT_HOME_DEST,
-    GIT_PROTOCOLS_PREFIXES,
-    SUPERTEMPLATER_HOME,
-)
+from supertemplater.constants import (DEFAULT_HOME_DEST, GIT_PROTOCOLS_PREFIXES,
+                                      SUPERTEMPLATER_HOME)
 
 
 def extract_repo_name(url: str) -> str:
@@ -239,3 +237,7 @@ def get_current_time(tz: ZoneInfo = ZoneInfo("localtime")) -> datetime:
 
 def get_home() -> Path:
     return Path(os.getenv(SUPERTEMPLATER_HOME, DEFAULT_HOME_DEST))
+
+
+def clear_directory(dir_path: Path) -> None:
+    shutil.rmtree(dir_path.absolute().as_posix())

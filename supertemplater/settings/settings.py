@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Self
 
 from pydantic import BaseSettings
@@ -14,6 +15,22 @@ from .settings_sources import yaml_config_settings_source
 class Settings(BaseSettings):
     logs: LoggingSettings = LoggingSettings()
     jinja: JinjaSettings = JinjaSettings()
+
+    @property
+    def home(self) -> Path:
+        return get_home()
+
+    @property
+    def logs_home(self) -> Path:
+        return self.logs.logs_home
+
+    @property
+    def cache_home(self) -> Path:
+        return self.home.joinpath("cache")
+
+    @property
+    def dependencies_home(self) -> Path:
+        return self.cache_home.joinpath("dependencies")
 
     def update(self, data: Self) -> None:
         diff = data.dict(exclude_unset=True).keys()
