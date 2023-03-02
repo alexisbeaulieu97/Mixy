@@ -24,26 +24,26 @@ class Project(RenderableBaseModel):
     _RENDERABLE_EXCLUDES = {"settings"}
 
     dependencies: list[ProjectDependency]
-    base_dir: Path
+    destination: Path
 
     settings: Settings = Settings()
     variables: ProjectVariables = ProjectVariables()
 
     @property
     def exists(self) -> bool:
-        return self.base_dir.exists()
+        return self.destination.exists()
 
     @property
     def is_empty(self) -> bool:
         if not self.exists:
             return True
-        return not any(self.base_dir.iterdir())
+        return not any(self.destination.iterdir())
 
     def resolve_dependencies(self, context: Context) -> None:
-        self.base_dir.mkdir(exist_ok=True)
+        self.destination.mkdir(exist_ok=True)
         for dependency in self.dependencies:
-            dependency.resolve(self.base_dir, context)
+            dependency.resolve(self.destination, context)
 
     def empty(self) -> None:
         if self.exists:
-            shutil.rmtree(self.base_dir)
+            shutil.rmtree(self.destination)
