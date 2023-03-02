@@ -1,5 +1,12 @@
 <!--next-version-placeholder-->
 
+## v1.0.0 (2023-03-02)
+### Feature
+* Added a clear command to the cli ([`d937df2`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/d937df28bf6c0fc48d5ee75d2981aa6e108df9a2))
+
+### Breaking
+* adding a second command to the CLI means it will not pick 'create' as the default command and must be explicitly used  ([`d937df2`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/d937df28bf6c0fc48d5ee75d2981aa6e108df9a2))
+
 ## v0.6.0 (2023-02-16)
 ### Feature
 * Added settings override levels (default, global, project) ([`07c01e0`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/07c01e0a259139486348d5254aeb688b3f43b74a))
