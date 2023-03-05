@@ -5,8 +5,11 @@ from pathlib import Path
 from typing import Any, Iterator, List, Mapping, Optional
 from zoneinfo import ZoneInfo
 
-from supertemplater.constants import (DEFAULT_HOME_DEST, GIT_PROTOCOLS_PREFIXES,
-                                      SUPERTEMPLATER_HOME)
+from supertemplater.constants import (
+    DEFAULT_HOME_DEST,
+    GIT_PROTOCOLS_PREFIXES,
+    SUPERTEMPLATER_HOME,
+)
 
 
 def extract_repo_name(url: str) -> str:
@@ -229,15 +232,53 @@ def is_in_lists(item: Any, *lists: list[Any]) -> bool:
 
 
 def get_current_time(tz: ZoneInfo = ZoneInfo("localtime")) -> datetime:
-    dt = datetime.utcnow()
-    utc_tz = ZoneInfo("UTC")
-    utc_dt = dt.replace(tzinfo=utc_tz)
-    return utc_dt.astimezone(tz)
+    """
+    Get the current datetime in the specified timezone or the local timezone by default.
+
+    Args:
+        tz (ZoneInfo, optional): The timezone to convert the current time to.
+            Defaults to the local timezone.
+
+    Returns:
+        datetime: The current datetime in the specified timezone.
+    """
+    dt = datetime.now(ZoneInfo("UTC"))
+    return dt.astimezone(tz)
 
 
 def get_home() -> Path:
+    """
+    Returns a `Path` object representing the home directory for the program.
+
+    If the `SUPERTEMPLATER_HOME` environment variable is set,
+    the function returns a `Path` object representing the directory
+    specified by the environment variable. Otherwise,
+    the function returns a `Path` object representing
+    the default home directory specified by `DEFAULT_HOME_DEST`.
+
+    Returns:
+        A `Path` object representing the home directory for the program.
+
+    Examples:
+        >>> get_home()
+        PosixPath('/path/to/program/home')
+
+        >>> os.environ['SUPERTEMPLATER_HOME'] = '/path/to/custom/home'
+        >>> get_home()
+        PosixPath('/path/to/custom/home')
+
+        >>> os.environ.pop('SUPERTEMPLATER_HOME')
+        >>> get_home()
+        PosixPath('/path/to/default/home')
+    """
     return Path(os.getenv(SUPERTEMPLATER_HOME, DEFAULT_HOME_DEST))
 
 
 def clear_directory(dir_path: Path) -> None:
+    """
+    Resursively remove all files and directories within the given directory.
+
+    Args:
+        dir_path (Path): The path of the directory to clear.
+    """
     shutil.rmtree(dir_path.absolute().as_posix())

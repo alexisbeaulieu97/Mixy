@@ -1,13 +1,12 @@
-from functools import cached_property
 from pathlib import Path
 from typing import Literal
 
-from git.repo import Repo
 from pydantic import validator
 
+from supertemplater.cached_repository import CachedRepository
 from supertemplater.context import Context
 from supertemplater.settings import settings
-from supertemplater.utils import extract_repo_name, get_home, is_git_url
+from supertemplater.utils import extract_repo_name, is_git_url
 
 from .base import RenderableBaseModel
 from .directory_dependency import DirectoryDependency
@@ -26,51 +25,17 @@ class GitDependency(RenderableBaseModel):
             raise ValueError("src must be a git url")
         return v
 
-    @cached_property
-    def name(self) -> str:
-        return extract_repo_name(self.src)
-
-    @cached_property
-    def repo(self) -> Repo:
-        if settings.dependencies_home.joinpath(self.name).is_dir():
-            return Repo(settings.dependencies_home.joinpath(self.name))
-
-        return self._clone()
-
     @property
-    def needs_update(self) -> bool:
-        self.fetch()
-        commits_behind = self.repo.iter_commits(
-            rev=f"{self.branch}..{self.tracking_branch}"
-        )
-        return next(commits_behind, None) is not None
-
-    @property
-    def branch(self) -> str:
-        return self.repo.active_branch.name
-
-    @property
-    def tracking_branch(self) -> str | None:
-        tracking_branch = self.repo.active_branch.tracking_branch()
-        if tracking_branch is None:
-            return None
-        return tracking_branch.name
-
-    def pull(self) -> None:
-        self.repo.remotes.origin.pull()
-
-    def fetch(self) -> None:
-        self.repo.remotes.origin.fetch()
-
-    def _clone(self) -> Repo:
-        if self.version is None:
-            return Repo.clone_from(self.src, settings.dependencies_home.joinpath(self.name), depth=1)  # type: ignore
-        return Repo.clone_from(self.src, settings.dependencies_home.joinpath(self.name), branch=self.version, depth=1)  # type: ignore
+    def _repo_cache_path(self) -> Path:
+        return settings.dependencies_home.joinpath(extract_repo_name(self.src))
 
     def resolve(self, into_dir: Path, context: Context) -> None:
-        if self.needs_update:
-            self.pull()
+        repo = CachedRepository.cache_or_clone(self.src, self._repo_cache_path)
+        repo.pull()
+        repo.checkout(self.version)
         dependency = DirectoryDependency(
-            src=self.repo.working_dir, dest=self.dest, ignores=[".git"] + self.ignores
+            src=repo.working_tree_dir,  # type: ignore
+            dest=self.dest,
+            ignores=[".git"] + self.ignores,
         )
         dependency.resolve(into_dir, context)
