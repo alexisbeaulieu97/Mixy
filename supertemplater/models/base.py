@@ -11,7 +11,7 @@ from supertemplater.protocols import Updatable
 
 class BaseModel(BM):
     def update(self, data: Self) -> None:
-        diff = data.dict(exclude_unset=True).keys()
+        diff = data.dict(exclude_defaults=True).keys()
         for k in diff:
             value = getattr(self, k)
             new_value = getattr(data, k)
