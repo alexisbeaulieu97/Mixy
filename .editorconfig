@@ -11,12 +11,11 @@ charset = utf-8
 [*.py]
 max_line_length = 88
 
-[*.json]
-indent_size = 2
+[*.{json, jsonc}]
 insert_final_newline = ignore
 
 [docs/**.txt]
 max_line_length = 79
 
-[*.yml]
+[*.{yml, yaml}]
 indent_size = 2

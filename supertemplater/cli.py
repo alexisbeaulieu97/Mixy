@@ -7,14 +7,16 @@ from jinja2 import Environment, StrictUndefined
 
 from supertemplater.builders.logger_builder import LoggerBuilder
 from supertemplater.context import Context
-from supertemplater.exceptions import (MissingProjectConfigurationError,
-                                       ProjectAlreadyExistsError)
+from supertemplater.exceptions import (
+    MissingProjectConfigurationError,
+    ProjectAlreadyExistsError,
+)
 from supertemplater.models import Project
 from supertemplater.preloaded_resolver import PreloadedResolver
 from supertemplater.prompt_resolver import PromptResolver
 from supertemplater.protocols.variable_resolver import VariableResolver
 from supertemplater.settings import Settings, settings
-from supertemplater.utils import clear_directory, get_home
+from supertemplater.utils import clear_directory
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 logger = LoggerBuilder.with_settings(settings.logs, __name__)
