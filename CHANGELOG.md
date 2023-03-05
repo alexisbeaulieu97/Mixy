@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v1.1.0 (2023-03-05)
+### Feature
+* Added a CachedRepository class to handle cached git repositories (automatic updates, more versatile version options, etc.) ([`8549a48`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/8549a483b61b8daa0d0cc93c229064cee3d6c8b2))
+
 ## v1.0.0 (2023-03-02)
 ### Feature
 * Added a clear command to the cli ([`d937df2`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/d937df28bf6c0fc48d5ee75d2981aa6e108df9a2))
