@@ -1,11 +1,9 @@
 from typing import Any
 
-from supertemplater.protocols import (
-    BasicResolver,
-    ChoicesResolver,
-    SecretsResolver,
-    VariableResolver,
-)
+from supertemplater.protocols.basic_resolver import BasicResolver
+from supertemplater.protocols.choices_resolver import ChoicesResolver
+from supertemplater.protocols.secrets_resolver import SecretsResolver
+from supertemplater.protocols.variable_resolver import VariableResolver
 
 from .base import RenderableBaseModel
 

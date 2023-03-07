@@ -4,7 +4,8 @@ from typing import Self
 from pydantic import BaseSettings
 
 from supertemplater.constants import SETTINGS_FILE
-from supertemplater.protocols import Updatable
+from supertemplater.merge_strategies import RecursiveMergeStrategy
+from supertemplater.protocols.merge_strategy import MergeStrategy
 from supertemplater.utils import get_home
 
 from .jinja_settings import JinjaSettings
@@ -32,15 +33,10 @@ class Settings(BaseSettings):
     def dependencies_home(self) -> Path:
         return self.cache_home.joinpath("dependencies")
 
-    def update(self, data: Self) -> None:
-        diff = data.dict(exclude_unset=True).keys()
-        for k in diff:
-            value = getattr(self, k)
-            new_value = getattr(data, k)
-            if isinstance(value, Updatable):
-                value.update(new_value)
-            else:
-                setattr(self, k, new_value)
+    def merge_with(
+        self, data: Self, strategy: MergeStrategy = RecursiveMergeStrategy()
+    ) -> None:
+        strategy.merge(self, data)
 
     class Config:
         env_file_encoding = "utf-8"

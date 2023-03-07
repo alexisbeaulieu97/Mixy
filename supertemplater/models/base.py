@@ -1,24 +1,20 @@
-import json
 from enum import Enum
 from functools import cached_property
+from pathlib import Path
 from typing import Any, Self
 
 from pydantic import BaseModel as BM
 
 from supertemplater.context import Context
-from supertemplater.protocols import Updatable
+from supertemplater.merge_strategies import RecursiveMergeStrategy
+from supertemplater.protocols.merge_strategy import MergeStrategy
 
 
 class BaseModel(BM):
-    def update(self, data: Self) -> None:
-        diff = data.dict(exclude_defaults=True).keys()
-        for k in diff:
-            value = getattr(self, k)
-            new_value = getattr(data, k)
-            if isinstance(value, Updatable):
-                value.update(new_value)
-            else:
-                setattr(self, k, new_value)
+    def merge_with(
+        self, data: Self, strategy: MergeStrategy = RecursiveMergeStrategy()
+    ) -> None:
+        strategy.merge(self, data)
 
     class Config:
         underscore_attrs_are_private = True
@@ -29,18 +25,39 @@ class BaseModel(BM):
 class RenderableBaseModel(BaseModel):
     _RENDERABLE_EXCLUDES: set[str] = set()
 
+    def _recursive_render(self, obj: Any, context: Context) -> Any:
+        if isinstance(obj, str):
+            return context.render(obj)
+        elif isinstance(obj, Path):
+            return Path(context.render(str(obj)))
+        elif isinstance(obj, RenderableBaseModel):
+            return obj.render(context)
+        elif isinstance(obj, dict):
+            return {k: self._recursive_render(v, context) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._recursive_render(x, context) for x in obj]
+        elif hasattr(obj, "__dict__"):
+            fields: dict[str, Any] = obj.__dict__
+            for k, v in fields.items():
+                if k.startswith("__"):
+                    continue
+                new_value = self._recursive_render(v, context)
+                setattr(obj, k, new_value)
+            return obj
+        else:
+            return obj
+
     def render(self, context: Context) -> Self:
-        # TODO make this recursive
-        templated = self.json(
+        templated = self.dict(
             exclude={name: True for name in self._RENDERABLE_EXCLUDES}
         )
-        not_templated = self.json(
+        not_templated = self.dict(
             include={name: True for name in self._RENDERABLE_EXCLUDES}
         )
-        resolved_templated = context.render(templated)
+        resolved_templated = self._recursive_render(templated, context)
         resolved: dict[str, Any] = {
-            **json.loads(resolved_templated),
-            **json.loads(not_templated),
+            **resolved_templated,
+            **not_templated,
         }
         return self.__class__(**resolved)
 
