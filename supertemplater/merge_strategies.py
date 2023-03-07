@@ -10,8 +10,6 @@ T = TypeVar("T", BaseModel, BaseSettings)
 class RecursiveMergeStrategy:
     def merge(self, a: T, b: T) -> None:
         diff = b.dict(exclude_unset=True).keys()
-        print(b)
-        print("DIFFFFFFFFFFFFFFFFFFFFFFFFF", diff)
         for k in diff:
             value = getattr(a, k)
             new_value = getattr(a, k)
