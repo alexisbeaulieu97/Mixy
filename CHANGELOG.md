@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v1.2.0 (2023-03-08)
+### Feature
+* Reworked templating to make it recursive ([`41a6833`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/41a683308ac4a561a07f158254afeb9f29cc4b04))
+
 ## v1.1.0 (2023-03-05)
 ### Feature
 * Added a CachedRepository class to handle cached git repositories (automatic updates, more versatile version options, etc.) ([`8549a48`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/8549a483b61b8daa0d0cc93c229064cee3d6c8b2))
