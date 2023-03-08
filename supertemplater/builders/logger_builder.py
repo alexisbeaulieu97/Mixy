@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TextIO
 
 from supertemplater.models.log_level import LogLevel
-from supertemplater.settings import LoggingSettings
+from supertemplater.settings.logging_settings import LoggingSettings
 
 
 class LoggerBuilder:

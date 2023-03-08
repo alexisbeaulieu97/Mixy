@@ -5,7 +5,7 @@ from pydantic import validator
 
 from supertemplater.cached_repository import CachedRepository
 from supertemplater.context import Context
-from supertemplater.settings import settings
+from supertemplater.settings.settings import settings
 from supertemplater.utils import extract_repo_name, is_git_url
 
 from .base import RenderableBaseModel

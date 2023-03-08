@@ -11,11 +11,11 @@ from supertemplater.exceptions import (
     MissingProjectConfigurationError,
     ProjectAlreadyExistsError,
 )
-from supertemplater.models import Project
+from supertemplater.models.project import Project
 from supertemplater.preloaded_resolver import PreloadedResolver
 from supertemplater.prompt_resolver import PromptResolver
 from supertemplater.protocols.variable_resolver import VariableResolver
-from supertemplater.settings import Settings, settings
+from supertemplater.settings.settings import Settings, settings
 from supertemplater.utils import clear_directory
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
@@ -24,7 +24,7 @@ logger = LoggerBuilder.with_settings(settings.logs, __name__)
 
 def update_settings(project_settings: Settings) -> None:
     logger.info("Updating the settings with project settings")
-    settings.update(project_settings)
+    settings.merge_with(project_settings)
 
 
 def get_project(destination: Path, config_file: Path) -> Project:

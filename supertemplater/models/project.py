@@ -1,4 +1,3 @@
-import shutil
 from pathlib import Path
 from typing import Union
 
@@ -6,7 +5,7 @@ from pydantic import Field
 from typing_extensions import Annotated
 
 from supertemplater.context import Context
-from supertemplater.settings import Settings
+from supertemplater.settings.settings import Settings
 from supertemplater.utils import clear_directory
 
 from .base import RenderableBaseModel
