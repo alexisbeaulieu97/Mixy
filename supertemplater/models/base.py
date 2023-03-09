@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Self
 
 from pydantic import BaseModel as BM
+from pydantic import Extra
 
 from supertemplater.context import Context
 from supertemplater.merge_strategies import RecursiveMergeStrategy
@@ -20,6 +21,7 @@ class BaseModel(BM):
         underscore_attrs_are_private = True
         keep_untouched = (cached_property,)  # type: ignore
         validate_assignment = True
+        extra = Extra.forbid
 
 
 class RenderableBaseModel(BaseModel):

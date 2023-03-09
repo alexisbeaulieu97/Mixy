@@ -9,11 +9,9 @@ T = TypeVar("T", BaseModel, BaseSettings)
 
 class RecursiveMergeStrategy:
     def merge(self, a: T, b: T) -> None:
-        diff = b.dict(exclude_unset=True).keys()
-        for k in diff:
+        for k, v in b.dict(exclude_unset=True).items():
             value = getattr(a, k)
-            new_value = getattr(a, k)
             if isinstance(value, Mergeable):
-                value.merge_with(new_value, self)
+                value.merge_with(v, self)
             else:
-                setattr(a, k, new_value)
+                setattr(a, k, v)

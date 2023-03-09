@@ -11,7 +11,7 @@ from supertemplater.models.file_dependency import FileDependency
 from supertemplater.models.git_dependency import GitDependency
 from supertemplater.models.github_dependency import GitHubDependency
 from supertemplater.models.project_variables import ProjectVariables
-from supertemplater.settings.settings import Settings
+from supertemplater.settings.project_settings import ProjectSettings
 from supertemplater.utils import clear_directory
 
 ProjectDependency = Annotated[
@@ -26,7 +26,7 @@ class Project(RenderableBaseModel):
     dependencies: list[ProjectDependency]
     destination: Path
 
-    settings: Settings = Settings()
+    settings: ProjectSettings = ProjectSettings()
     variables: ProjectVariables = ProjectVariables()
 
     @property
