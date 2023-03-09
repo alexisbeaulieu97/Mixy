@@ -7,7 +7,7 @@ from jinja2 import Environment, StrictUndefined
 
 @dataclass
 class Context:
-    env: Environment = Environment(undefined=StrictUndefined, autoescape=True)
+    env: Environment = Environment(undefined=StrictUndefined)
     _ctx: dict[str, Any] = field(default_factory=lambda: dict())
 
     @property
