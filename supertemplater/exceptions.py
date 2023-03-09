@@ -29,3 +29,10 @@ class InvalidChoiceError(Exception):
         super().__init__(
             f'The provided choice "{choice}" is not valid. Valid choices are: {choices}'
         )
+
+
+class InvalidCommandError(Exception):
+    """Raised when an invalid command is passed before it is executed."""
+
+    def __init__(self, msg: str) -> None:
+        super().__init__(msg)
