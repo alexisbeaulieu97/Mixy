@@ -10,7 +10,7 @@ SETTINGS_FILE = "settings.yml"
 
 
 # MISC
-HTTP_PREFIX = "HTTP://"
+HTTP_PREFIX = "http://"
 HTTPS_PREFIX = "https://"
 GIT_PREFIX = "git@"
 SSH_PREFIX = "ssh://"
