@@ -1,5 +1,10 @@
 <!--next-version-placeholder-->
 
+## v1.3.2 (2023-03-09)
+### Fix
+* Added a project settings class to include inside the project instead of the global settings class to better manage which options are included in the project settings ([`edc9c59`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/edc9c5967ceb03c403b8d1ca9ac5073c783632d7))
+* Fixed an issue that prevented the recursive merge strategy from being applied properly ([`a0cf057`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/a0cf0573f4b83759eb252dee2c5aeb62cc1cc7d0))
+
 ## v1.3.1 (2023-03-09)
 ### Fix
 * We are now excluding variables from project rendering because they are not part of the end product ([`ffd2a58`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/ffd2a58365a41c923a8ddc919b077bea568c6cdc))
