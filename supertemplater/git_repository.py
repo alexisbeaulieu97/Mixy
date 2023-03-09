@@ -4,7 +4,7 @@ from typing import Self
 from git.repo import Repo
 
 
-class CachedRepository(Repo):
+class GitRepository(Repo):
     def is_branch_behind(self, branch: str) -> bool:
         local_branch = self.heads[branch]
         remote_branch = local_branch.tracking_branch()
@@ -37,7 +37,7 @@ class CachedRepository(Repo):
             self.git.checkout("-")
         self.remotes.origin.pull(tags=tags)
 
-    def update(self) -> None:
+    def sync(self) -> None:
         self.fetch()
         if self.is_branch_behind(self.active_branch.name):
             self.pull()

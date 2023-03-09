@@ -70,7 +70,9 @@ def create(
 
         update_settings(project.settings)
         ctx = Context(
-            env=Environment(undefined=StrictUndefined, **settings.jinja.dict())
+            env=Environment(
+                undefined=StrictUndefined, **settings.jinja.dict(), autoescape=True
+            )
         )
 
         if context is not None:

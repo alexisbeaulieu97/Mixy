@@ -1,8 +1,10 @@
 import os
+import re
 import shutil
+import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterator, List, Mapping, Optional
+from typing import Any, Iterable, Iterator, List, Mapping, Optional
 from zoneinfo import ZoneInfo
 
 from supertemplater.constants import (
@@ -10,6 +12,7 @@ from supertemplater.constants import (
     GIT_PROTOCOLS_PREFIXES,
     SUPERTEMPLATER_HOME,
 )
+from supertemplater.exceptions import InvalidCommandError
 
 
 def extract_repo_name(url: str) -> str:
@@ -41,14 +44,14 @@ def is_git_url(url: str) -> bool:
     return starts_with_option(url, GIT_PROTOCOLS_PREFIXES)
 
 
-def starts_with_option(s: str, options: List[str]) -> bool:
+def starts_with_option(s: str, options: Iterable[str]) -> bool:
     """
     Given a string `s` and a list of strings `options`, returns a boolean
     indicating whether any of the strings in `options` starts with `s`.
 
     Args:
         s (str): A string to check.
-        options (List[str]): A list of strings to check for the presence of `s` at the start of any of the strings in the list.
+        options (Iterable[str]): A list of strings to check for the presence of `s` at the start of any of the strings in the list.
 
     Returns:
         bool: True if any of the strings in `options` starts with `s`, False otherwise.
@@ -282,3 +285,24 @@ def clear_directory(dir_path: Path) -> None:
         dir_path (Path): The path of the directory to clear.
     """
     shutil.rmtree(dir_path.absolute().as_posix())
+
+
+def is_format(data: str, formats: Iterable[str]) -> bool:
+    for f in formats:
+        m = re.match(f, data)
+        if m is not None:
+            return True
+    return False
+
+
+def run_github_command(*opts: str) -> subprocess.CompletedProcess:
+    for o in opts:
+        if not isinstance(o, str):
+            raise InvalidCommandError("Command options must be of type 'str'")
+
+    return subprocess.run(
+        ["gh", *opts],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="UTF-8",
+    )

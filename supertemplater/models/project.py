@@ -5,17 +5,17 @@ from pydantic import Field
 from typing_extensions import Annotated
 
 from supertemplater.context import Context
+from supertemplater.models.base import RenderableBaseModel
+from supertemplater.models.directory_dependency import DirectoryDependency
+from supertemplater.models.file_dependency import FileDependency
+from supertemplater.models.git_dependency import GitDependency
+from supertemplater.models.github_dependency import GitHubDependency
+from supertemplater.models.project_variables import ProjectVariables
 from supertemplater.settings.settings import Settings
 from supertemplater.utils import clear_directory
 
-from .base import RenderableBaseModel
-from .directory_dependency import DirectoryDependency
-from .file_dependency import FileDependency
-from .git_dependency import GitDependency
-from .project_variables import ProjectVariables
-
 ProjectDependency = Annotated[
-    Union[GitDependency, FileDependency, DirectoryDependency],
+    Union[DirectoryDependency, FileDependency, GitDependency, GitHubDependency],
     Field(discriminator="src_type"),
 ]
 

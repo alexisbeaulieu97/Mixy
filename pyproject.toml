@@ -30,6 +30,8 @@ flake8 = "^6.0.0"
 pyfakefs = "^5.0.0"
 vulture = "^2.7"
 pytest-mock = "^3.10.0"
+semgrep = "^1.14.0"
+bandit = {extras = ["toml"], version = "^1.7.4"}
 
 [tool.poetry.scripts]
 supertemplater = "supertemplater.cli:main"
