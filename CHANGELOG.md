@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v1.3.1 (2023-03-09)
+### Fix
+* We are now excluding variables from project rendering because they are not part of the end product ([`ffd2a58`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/ffd2a58365a41c923a8ddc919b077bea568c6cdc))
+
 ## v1.3.0 (2023-03-09)
 ### Feature
 * Added support for github cli as a dependency type ([`81e5379`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/81e5379de9cc94cbfe480b6571f13a561eb7551a))
