@@ -1,5 +1,13 @@
 <!--next-version-placeholder-->
 
+## v1.3.0 (2023-03-09)
+### Feature
+* Added support for github cli as a dependency type ([`81e5379`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/81e5379de9cc94cbfe480b6571f13a561eb7551a))
+
+### Fix
+* Changed HTTP to http in git url constants ([`f7ab47e`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/f7ab47ef081d323ba6b41cbeb634ccf96ea317e2))
+* Removed autoescape because it kept adding invalid characters ([`c3a8e26`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/c3a8e26f2380790f72eb4f7519739a17de5cde49))
+
 ## v1.2.0 (2023-03-08)
 ### Feature
 * Reworked templating to make it recursive ([`41a6833`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/41a683308ac4a561a07f158254afeb9f29cc4b04))
