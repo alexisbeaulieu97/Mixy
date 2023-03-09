@@ -21,7 +21,7 @@ ProjectDependency = Annotated[
 
 
 class Project(RenderableBaseModel):
-    _RENDERABLE_EXCLUDES = {"settings"}
+    _RENDERABLE_EXCLUDES = {"settings", "variables"}
 
     dependencies: list[ProjectDependency]
     destination: Path
