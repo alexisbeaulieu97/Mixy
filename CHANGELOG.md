@@ -1,5 +1,12 @@
 <!--next-version-placeholder-->
 
+## v1.4.0 (2023-03-10)
+### Feature
+* Added support for toml settings ([`2ad67d4`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/2ad67d497aefa501465e0518a23134157b3987e5))
+
+### Fix
+* Fixed a bug preventing users from using '~' to specify the home path from the environment variable ([`3a11bac`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/3a11baced69c46dcc15955badc614a8bd47543d5))
+
 ## v1.3.2 (2023-03-09)
 ### Fix
 * Added a project settings class to include inside the project instead of the global settings class to better manage which options are included in the project settings ([`edc9c59`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/edc9c5967ceb03c403b8d1ca9ac5073c783632d7))
