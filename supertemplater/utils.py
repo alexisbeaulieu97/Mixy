@@ -274,7 +274,7 @@ def get_home() -> Path:
         >>> get_home()
         PosixPath('/path/to/default/home')
     """
-    return Path(os.getenv(SUPERTEMPLATER_HOME, DEFAULT_HOME_DEST))
+    return Path(os.getenv(SUPERTEMPLATER_HOME, DEFAULT_HOME_DEST)).expanduser()
 
 
 def clear_directory(dir_path: Path) -> None:
