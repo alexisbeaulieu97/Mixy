@@ -3,14 +3,14 @@ from typing import Self
 
 from pydantic import BaseSettings
 
-from supertemplater.constants import SETTINGS_FILE
+from supertemplater.constants import SETTINGS_FILE_TOML, SETTINGS_FILE_YAML
 from supertemplater.merge_strategies import RecursiveMergeStrategy
 from supertemplater.protocols.merge_strategy import MergeStrategy
 from supertemplater.utils import get_home
 
 from .jinja_settings import JinjaSettings
 from .logging_settings import LoggingSettings
-from .settings_sources import yaml_config_settings_source
+from .settings_sources import toml_config_settings_source, yaml_config_settings_source
 
 
 class Settings(BaseSettings):
@@ -52,7 +52,8 @@ class Settings(BaseSettings):
         ):
             return (
                 init_settings,
-                yaml_config_settings_source(get_home().joinpath(SETTINGS_FILE)),
+                toml_config_settings_source(get_home().joinpath(SETTINGS_FILE_TOML)),
+                yaml_config_settings_source(get_home().joinpath(SETTINGS_FILE_YAML)),
                 env_settings,
                 file_secret_settings,
             )
