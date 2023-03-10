@@ -6,7 +6,8 @@ DEFAULT_HOME_DEST = Path.home().joinpath(".supertemplater")
 
 
 # CONFIGURATION FILES
-SETTINGS_FILE = "settings.yml"
+SETTINGS_FILE_TOML = "settings.toml"
+SETTINGS_FILE_YAML = "settings.yml"
 
 
 # MISC
