@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v1.5.0 (2023-03-14)
+### Feature
+* Added a switch to enable/disable the cache ([`7517277`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/751727775ac2c5ee4e202315762b3f7f1b31ec43))
+
 ## v1.4.0 (2023-03-10)
 ### Feature
 * Added support for toml settings ([`2ad67d4`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/2ad67d497aefa501465e0518a23134157b3987e5))
