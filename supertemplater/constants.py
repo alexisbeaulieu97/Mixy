@@ -1,8 +1,11 @@
+import os
 from pathlib import Path
 
 # HOME
 SUPERTEMPLATER_HOME = "SUPERTEMPLATER_HOME"
-DEFAULT_HOME_DEST = Path.home().joinpath(".supertemplater")
+DEFAULT_HOME_PATH = Path.home().joinpath(".supertemplater")
+HOME = Path(os.getenv(SUPERTEMPLATER_HOME, DEFAULT_HOME_PATH))
+CACHE_DEFAULT_PATH = HOME.joinpath("cache")
 
 
 # CONFIGURATION FILES

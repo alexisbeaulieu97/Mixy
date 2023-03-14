@@ -96,10 +96,16 @@ def create(
     except Exception:
         logger.exception("Project creation failed")
 
+    if not settings.cache.enabled:
+        logger.info("Cache is disabled, removing the cached dependencies")
+        clear()
 
-@app.command(help="Clear the program cache.")
+
+@app.command(help="Clear the program's cache.")
 def clear():
-    clear_directory(settings.cache_home)
+    logger.info("Clearing the cache")
+    clear_directory(settings.cache.location)
+    logger.info("Cache cleared successfully")
 
 
 def main() -> None:
