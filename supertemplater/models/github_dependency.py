@@ -28,7 +28,7 @@ class GitHubDependency(RenderableBaseModel):
 
     @property
     def _repo_cache_path(self) -> Path:
-        return settings.dependencies_home.joinpath(extract_repo_name(self.src))
+        return settings.cache.location.joinpath(extract_repo_name(self.src))
 
     def resolve(self, into_dir: Path, context: Context) -> None:
         repo = GitHubRepository.cache_or_clone(self.src, self._repo_cache_path)
