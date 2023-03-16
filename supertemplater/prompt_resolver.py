@@ -2,6 +2,7 @@ from typing import Any, TypeVar
 
 import click
 import typer
+import yaml
 
 _T = TypeVar("_T")
 
@@ -22,9 +23,13 @@ class PromptResolver:
             + var_name,
             default=default,
         )
-        if str(default) == resp:
-            return default
-        return str(resp).replace(" ", "").split(",")
+
+        loaded_resp = yaml.safe_load(resp)
+        if not isinstance(loaded_resp, list):
+            # TODO make a custom exception
+            raise Exception(f"Expected a list, but got: {type(loaded_resp)}")
+
+        return loaded_resp
 
     def secret(self, var_name: str) -> str:
         return typer.prompt(
@@ -52,7 +57,10 @@ class PromptResolver:
             )
         )
         user_choice = click.prompt(
-            prompt, type=click.Choice(choice_map.keys()), default="1", show_choices=False  # type: ignore
+            prompt,
+            type=click.Choice(choice_map.keys()),  # type: ignore
+            default="1",
+            show_choices=False,
         )
 
         return choice_map[user_choice]
