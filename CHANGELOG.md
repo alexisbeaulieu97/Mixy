@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v1.6.0 (2023-03-16)
+### Feature
+* Changed the name of variable types in the project configuration to use names that represent the intent better ([`07f6c64`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/07f6c648435b0b34a4f25d08c31ffdb0739470cc))
+
 ## v1.5.0 (2023-03-14)
 ### Feature
 * Added a switch to enable/disable the cache ([`7517277`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/751727775ac2c5ee4e202315762b3f7f1b31ec43))
