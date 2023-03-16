@@ -9,13 +9,13 @@ from .base import RenderableBaseModel
 
 
 class ProjectVariables(RenderableBaseModel):
-    basic: dict[str, Any] = {}
-    secrets: list[str] = []
-    choices: dict[str, list[Any]] = {}
+    standard: dict[str, Any] = {}
+    secret: list[str] = []
+    multi_choice: dict[str, list[Any]] = {}
 
     def resolve_basic(self, resolver: BasicResolver) -> dict[str, Any]:
         resolved: dict[str, Any] = {}
-        for k, v in self.basic.items():
+        for k, v in self.standard.items():
             if isinstance(v, bool):
                 resolved[k] = resolver.confirm(k, v)
             elif isinstance(v, list):
@@ -26,13 +26,13 @@ class ProjectVariables(RenderableBaseModel):
 
     def resolve_secrets(self, resolver: SecretsResolver) -> dict[str, Any]:
         resolved: dict[str, Any] = {}
-        for secret in self.secrets:
+        for secret in self.secret:
             resolved[secret] = resolver.secret(secret)
         return resolved
 
     def resolve_choices(self, resolver: ChoicesResolver) -> dict[str, Any]:
         resolved: dict[str, Any] = {}
-        for k, v in self.choices.items():
+        for k, v in self.multi_choice.items():
             resolved[k] = resolver.choice(k, *v)
         return resolved
 
