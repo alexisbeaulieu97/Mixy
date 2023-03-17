@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v1.7.0 (2023-03-16)
+### Feature
+* Made list prompt parsing more accurate using yaml's loader ([`548bc01`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/548bc017751ceeee6c1eb686eebcca35f330109a))
+
 ## v1.6.0 (2023-03-16)
 ### Feature
 * Changed the name of variable types in the project configuration to use names that represent the intent better ([`07f6c64`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/07f6c648435b0b34a4f25d08c31ffdb0739470cc))
