@@ -1,10 +1,11 @@
 import re
 import shutil
 import subprocess
-from datetime import datetime
+from datetime import datetime, tzinfo
 from pathlib import Path
 from typing import Any, Iterable, Iterator, List, Mapping, Optional
-from zoneinfo import ZoneInfo
+
+from dateutil.tz import tzlocal
 
 from supertemplater.constants import (
     GIT_PROTOCOLS_PREFIXES,
@@ -231,7 +232,7 @@ def is_in_lists(item: Any, *lists: list[Any]) -> bool:
     return False
 
 
-def get_current_time(tz: ZoneInfo = ZoneInfo("localtime")) -> datetime:
+def get_current_time(tz: tzinfo = tzlocal()) -> datetime:
     """
     Get the current datetime in the specified timezone or the local timezone by default.
 
@@ -242,8 +243,7 @@ def get_current_time(tz: ZoneInfo = ZoneInfo("localtime")) -> datetime:
     Returns:
         datetime: The current datetime in the specified timezone.
     """
-    dt = datetime.now(ZoneInfo("UTC"))
-    return dt.astimezone(tz)
+    return datetime.now(tz)
 
 
 def clear_directory(dir_path: Path) -> None:
