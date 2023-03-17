@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any
 
+import tomllib
 import typer
 import yaml
 from jinja2 import Environment, StrictUndefined
@@ -33,7 +34,13 @@ def get_project(destination: Path, config_file: Path) -> Project:
         raise MissingProjectConfigurationError(config_file)
 
     logger.info(f"Reading the project from {config_file}")
-    project_config = yaml.safe_load(config_file.open()) or {}
+    if config_file.suffix in (".yaml", ".yml"):
+        project_config = yaml.safe_load(config_file.open()) or {}
+    elif config_file.suffix == ".toml":
+        project_config = tomllib.loads(config_file.read_text()) or {}
+    else:
+        # TODO make this a custom exception
+        raise Exception("Unsupported project configuration format.")
     return Project(destination=destination, **project_config)
 
 
