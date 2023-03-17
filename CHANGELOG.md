@@ -1,5 +1,10 @@
 <!--next-version-placeholder-->
 
+## v1.7.1 (2023-03-17)
+### Fix
+* Used builtin libraries to calculate local time ([`30fcd20`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/30fcd20aa3deb0f45ac09f7c14e00761f8ac7a71))
+* Fixed a bug which caused program to fail if 'localtime' was not a valid option for ZoneInfo ([`f397050`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/f3970506ac21123df6fd4881b170187b85a35512))
+
 ## v1.7.0 (2023-03-16)
 ### Feature
 * Made list prompt parsing more accurate using yaml's loader ([`548bc01`](https://github.com/alexisbeaulieu97/SuperTemplater/commit/548bc017751ceeee6c1eb686eebcca35f330109a))
