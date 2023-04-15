@@ -1,7 +1,7 @@
 <a name="readme-top"></a>
 
 <div align="center">
-  <h3 align="center">SuperTemplater</h3>
+  <h1 align="center">SuperTemplater</h1>
 
   <p align="center">
     A customizable project templater!
