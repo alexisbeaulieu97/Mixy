@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v1.9.0 (2023-04-15)
+### Feature
+* Renamed project\ ([`d871882`](https://github.com/alexisbeaulieu97/Mixy/commit/d871882afdd31f2c3dc8e0ac8027ac612cd92745))
+
 ## v1.8.0 (2023-03-17)
 ### Feature
 * Added toml as a supported configuration format for projects ([`3d65386`](https://github.com/alexisbeaulieu97/Mixy/commit/3d6538658f9318b41d3c72c5ef25b17c00c22b52))
