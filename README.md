@@ -2,6 +2,8 @@
 
 # SuperTemplater
 
+SuperTemplater is a CLI tool used to create projects based on one or multiple templates.
+
 > **Warning** This project is in early development and is rapidly evolving.
 > This means you can expect:
 > * Missing features
