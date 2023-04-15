@@ -1,6 +1,22 @@
 <a name="readme-top"></a>
 
-# SuperTemplater
+<div align="center">
+  <a href="https://github.com/othneildrew/Best-README-Template">
+    <img src="images/logo.png" alt="Logo" width="80" height="80">
+  </a>
+
+  <h3 align="center">SuperTemplater</h3>
+
+  <p align="center">
+    A customizable project templater!
+    <br />
+    <a href="https://github.com/alexisbeaulieu97/SuperTemplater/issues">Report Bug</a>
+    ·
+    <a href="https://github.com/alexisbeaulieu97/SuperTemplater/issues">Request Feature</a>
+  </p>
+</div>
+
+# About the project
 
 SuperTemplater is a CLI tool used to create projects based on one or multiple templates.
 
