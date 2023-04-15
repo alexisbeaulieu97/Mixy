@@ -3,18 +3,17 @@ from typing import Literal
 
 from pydantic import validator
 
-from supertemplater.constants import GITHUB_FORMATS
-from supertemplater.context import Context
-from supertemplater.github_repository import GitHubRepository
-from supertemplater.settings.settings import settings
-from supertemplater.utils import extract_repo_name, is_format
+from mixy.context import Context
+from mixy.git_repository import GitRepository
+from mixy.settings.settings import settings
+from mixy.utils import extract_repo_name, is_git_url
 
 from .base import RenderableBaseModel
 from .directory_dependency import DirectoryDependency
 
 
-class GitHubDependency(RenderableBaseModel):
-    src_type: Literal["gh"] = "gh"
+class GitDependency(RenderableBaseModel):
+    src_type: Literal["git"] = "git"
     src: str
     dest: Path
     version: str
@@ -22,8 +21,8 @@ class GitHubDependency(RenderableBaseModel):
 
     @validator("src")
     def validate_src(cls, v: str) -> str:
-        if not is_format(v, GITHUB_FORMATS):
-            raise ValueError(f"src must be a valid GitHub URL: {GITHUB_FORMATS}")
+        if not is_git_url(v):
+            raise ValueError("src must be a git url")
         return v
 
     @property
@@ -31,7 +30,7 @@ class GitHubDependency(RenderableBaseModel):
         return settings.cache.location.joinpath(extract_repo_name(self.src))
 
     def resolve(self, into_dir: Path, context: Context) -> None:
-        repo = GitHubRepository.cache_or_clone(self.src, self._repo_cache_path)
+        repo = GitRepository.cache_or_clone(self.src, self._repo_cache_path)
         repo.pull()
         repo.checkout(self.version)
         dependency = DirectoryDependency(

@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from supertemplater.preloaded_resolver import PreloadedResolver
+from mixy.preloaded_resolver import PreloadedResolver
 
 RESOLVER_VARIABLES = {
     "a": 1,

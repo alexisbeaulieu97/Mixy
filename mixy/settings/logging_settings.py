@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from supertemplater.constants import HOME
-from supertemplater.models.base import BaseModel
-from supertemplater.models.log_level import LogLevel
-from supertemplater.utils import get_current_time
+from mixy.constants import HOME
+from mixy.models.base import BaseModel
+from mixy.models.log_level import LogLevel
+from mixy.utils import get_current_time
 
 
 class LoggingSettings(BaseModel):

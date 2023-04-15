@@ -1,4 +1,4 @@
-from supertemplater.models.base import BaseModel
+from mixy.models.base import BaseModel
 
 
 class JinjaSettings(BaseModel):

@@ -5,10 +5,10 @@ from datetime import datetime, timezone, tzinfo
 from pathlib import Path
 from typing import Any, Iterable, Iterator, List, Mapping, Optional
 
-from supertemplater.constants import (
+from mixy.constants import (
     GIT_PROTOCOLS_PREFIXES,
 )
-from supertemplater.exceptions import InvalidCommandError
+from mixy.exceptions import InvalidCommandError
 
 
 def extract_repo_name(url: str) -> str:

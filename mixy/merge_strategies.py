@@ -2,7 +2,7 @@ from typing import TypeVar
 
 from pydantic import BaseModel, BaseSettings
 
-from supertemplater.protocols.mergeable import Mergeable
+from mixy.protocols.mergeable import Mergeable
 
 T = TypeVar("T", BaseModel, BaseSettings)
 

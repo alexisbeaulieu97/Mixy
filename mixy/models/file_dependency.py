@@ -3,8 +3,8 @@ from typing import Literal
 
 from pydantic.types import FilePath
 
-from supertemplater.context import Context
-from supertemplater.utils import join_local_path
+from mixy.context import Context
+from mixy.utils import join_local_path
 
 from .base import RenderableBaseModel
 

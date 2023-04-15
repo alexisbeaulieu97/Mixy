@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Optional, TypeVar
 
-from supertemplater.exceptions import InvalidChoiceError
+from mixy.exceptions import InvalidChoiceError
 
 _T = TypeVar("_T")
 

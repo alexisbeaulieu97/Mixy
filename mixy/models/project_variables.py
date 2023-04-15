@@ -1,9 +1,9 @@
 from typing import Any
 
-from supertemplater.protocols.basic_resolver import BasicResolver
-from supertemplater.protocols.choices_resolver import ChoicesResolver
-from supertemplater.protocols.secrets_resolver import SecretsResolver
-from supertemplater.protocols.variable_resolver import VariableResolver
+from mixy.protocols.basic_resolver import BasicResolver
+from mixy.protocols.choices_resolver import ChoicesResolver
+from mixy.protocols.secrets_resolver import SecretsResolver
+from mixy.protocols.variable_resolver import VariableResolver
 
 from .base import RenderableBaseModel
 

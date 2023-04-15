@@ -3,9 +3,9 @@ from typing import Iterator, Literal
 
 from pydantic.types import DirectoryPath
 
-from supertemplater.context import Context
-from supertemplater.protocols.dependency import Dependency
-from supertemplater.utils import get_directory_contents, join_local_path
+from mixy.context import Context
+from mixy.protocols.dependency import Dependency
+from mixy.utils import get_directory_contents, join_local_path
 
 from .base import RenderableBaseModel
 from .file_dependency import FileDependency

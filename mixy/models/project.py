@@ -4,15 +4,15 @@ from typing import Union
 from pydantic import Field
 from typing_extensions import Annotated
 
-from supertemplater.context import Context
-from supertemplater.models.base import RenderableBaseModel
-from supertemplater.models.directory_dependency import DirectoryDependency
-from supertemplater.models.file_dependency import FileDependency
-from supertemplater.models.git_dependency import GitDependency
-from supertemplater.models.github_dependency import GitHubDependency
-from supertemplater.models.project_variables import ProjectVariables
-from supertemplater.settings.project_settings import ProjectSettings
-from supertemplater.utils import clear_directory
+from mixy.context import Context
+from mixy.models.base import RenderableBaseModel
+from mixy.models.directory_dependency import DirectoryDependency
+from mixy.models.file_dependency import FileDependency
+from mixy.models.git_dependency import GitDependency
+from mixy.models.github_dependency import GitHubDependency
+from mixy.models.project_variables import ProjectVariables
+from mixy.settings.project_settings import ProjectSettings
+from mixy.utils import clear_directory
 
 ProjectDependency = Annotated[
     Union[DirectoryDependency, FileDependency, GitDependency, GitHubDependency],

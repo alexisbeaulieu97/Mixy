@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
 
-from supertemplater.git_repository import GitRepository
-from supertemplater.utils import run_github_command
+from mixy.git_repository import GitRepository
+from mixy.utils import run_github_command
 
 
 @dataclass

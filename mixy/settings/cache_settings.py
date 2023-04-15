@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from supertemplater.constants import CACHE_DEFAULT_PATH
-from supertemplater.models.base import BaseModel
+from mixy.constants import CACHE_DEFAULT_PATH
+from mixy.models.base import BaseModel
 
 
 class CacheSettings(BaseModel):

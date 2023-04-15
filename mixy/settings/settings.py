@@ -3,13 +3,13 @@ from typing import Self
 
 from pydantic import BaseSettings
 
-from supertemplater.constants import HOME, SETTINGS_FILE_TOML, SETTINGS_FILE_YAML
-from supertemplater.merge_strategies import RecursiveMergeStrategy
-from supertemplater.protocols.merge_strategy import MergeStrategy
-from supertemplater.settings.cache_settings import CacheSettings
-from supertemplater.settings.jinja_settings import JinjaSettings
-from supertemplater.settings.logging_settings import LoggingSettings
-from supertemplater.settings.sources import (
+from mixy.constants import HOME, SETTINGS_FILE_TOML, SETTINGS_FILE_YAML
+from mixy.merge_strategies import RecursiveMergeStrategy
+from mixy.protocols.merge_strategy import MergeStrategy
+from mixy.settings.cache_settings import CacheSettings
+from mixy.settings.jinja_settings import JinjaSettings
+from mixy.settings.logging_settings import LoggingSettings
+from mixy.settings.sources import (
     toml_config_settings_source,
     yaml_config_settings_source,
 )
@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file_encoding = "utf-8"
-        env_prefix = "supertemplater_"
+        env_prefix = "mixy_"
         env_nested_delimiter = "__"
 
         @classmethod

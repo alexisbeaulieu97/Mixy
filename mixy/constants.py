@@ -2,9 +2,9 @@ import os
 from pathlib import Path
 
 # HOME
-SUPERTEMPLATER_HOME = "SUPERTEMPLATER_HOME"
-DEFAULT_HOME_PATH = Path.home().joinpath(".supertemplater")
-HOME = Path(os.getenv(SUPERTEMPLATER_HOME, DEFAULT_HOME_PATH))
+MIXY_HOME = "MIXY_HOME"
+DEFAULT_HOME_PATH = Path.home().joinpath(".mixy")
+HOME = Path(os.getenv(MIXY_HOME, DEFAULT_HOME_PATH))
 CACHE_DEFAULT_PATH = HOME.joinpath("cache")
 
 

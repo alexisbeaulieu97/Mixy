@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "supertemplater"
+name = "mixy"
 version = "1.8.0"
 description = ""
 authors = ["Alexis Beaulieu <alexisbeaulieu97@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/alexisbeaulieu97/SuperTemplater"
-repository = "https://github.com/alexisbeaulieu97/SuperTemplater"
+homepage = "https://github.com/alexisbeaulieu97/Mixy"
+repository = "https://github.com/alexisbeaulieu97/Mixy"
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -34,10 +34,10 @@ semgrep = "^1.14.0"
 bandit = {extras = ["toml"], version = "^1.7.4"}
 
 [tool.poetry.scripts]
-supertemplater = "supertemplater.cli:main"
+mixy = "mixy.cli:main"
 
 [tool.semantic_release]
-version_variable = ["supertemplater/__init__.py:__version__"]
+version_variable = ["mixy/__init__.py:__version__"]
 version_toml = ["pyproject.toml:tool.poetry.version"]
 version_pattern = ["VERSION:{version}"]
 branch = "main"

@@ -6,19 +6,19 @@ import typer
 import yaml
 from jinja2 import Environment, StrictUndefined
 
-from supertemplater.builders.logger_builder import LoggerBuilder
-from supertemplater.context import Context
-from supertemplater.exceptions import (
+from mixy.builders.logger_builder import LoggerBuilder
+from mixy.context import Context
+from mixy.exceptions import (
     MissingProjectConfigurationError,
     ProjectAlreadyExistsError,
 )
-from supertemplater.models.project import Project
-from supertemplater.preloaded_resolver import PreloadedResolver
-from supertemplater.prompt_resolver import PromptResolver
-from supertemplater.protocols.variable_resolver import VariableResolver
-from supertemplater.settings.project_settings import ProjectSettings
-from supertemplater.settings.settings import settings
-from supertemplater.utils import clear_directory
+from mixy.models.project import Project
+from mixy.preloaded_resolver import PreloadedResolver
+from mixy.prompt_resolver import PromptResolver
+from mixy.protocols.variable_resolver import VariableResolver
+from mixy.settings.project_settings import ProjectSettings
+from mixy.settings.settings import settings
+from mixy.utils import clear_directory
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 logger = LoggerBuilder.with_settings(settings.logs, __name__)

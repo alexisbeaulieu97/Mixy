@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 from jinja2.exceptions import UndefinedError
 
-from supertemplater.context import Context
+from mixy.context import Context
 
 TEST_DATA = {"name": "John", "age": 30}
 

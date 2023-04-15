@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from pyfakefs.fake_filesystem_unittest import FakeFilesystem  # type: ignore
 
-from supertemplater.utils import (
+from mixy.utils import (
     extract_repo_name,
     get_all_files,
     get_directory_contents,
@@ -19,7 +19,7 @@ from supertemplater.utils import (
     unique_list,
 )
 
-TEST_DIR = Path("/tmp/supertemplater_test")
+TEST_DIR = Path("/tmp/mixy_test")
 
 
 def lists_are_equal(a: list[Any], b: list[Any]) -> bool:

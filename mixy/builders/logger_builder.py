@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 from typing import TextIO
 
-from supertemplater.models.log_level import LogLevel
-from supertemplater.settings.logging_settings import LoggingSettings
+from mixy.models.log_level import LogLevel
+from mixy.settings.logging_settings import LoggingSettings
 
 
 class LoggerBuilder:

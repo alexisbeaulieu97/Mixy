@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 from pytest_mock import MockerFixture
 
-from supertemplater.prompt_resolver import PromptResolver
+from mixy.prompt_resolver import PromptResolver
 
 DEFAULT_VALUE_REGULAR = "default"
 DEFAULT_VALUE_MULTI = ["default"]

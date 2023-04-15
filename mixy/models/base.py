@@ -6,9 +6,9 @@ from typing import Any, Self
 from pydantic import BaseModel as BM
 from pydantic import Extra
 
-from supertemplater.context import Context
-from supertemplater.merge_strategies import RecursiveMergeStrategy
-from supertemplater.protocols.merge_strategy import MergeStrategy
+from mixy.context import Context
+from mixy.merge_strategies import RecursiveMergeStrategy
+from mixy.protocols.merge_strategy import MergeStrategy
 
 
 class BaseModel(BM):
