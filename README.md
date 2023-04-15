@@ -18,7 +18,7 @@
 
 # About the project
 
-Mixy is a CLI tool used to create projects based on one or more templates. Templates can be files, directories, git repositories, or any other supported source of content, and allow you to customize them with variables. It combines the templates into a single project directory. As a flexible tool, Mixy uses a configuration file to define a project, which can then be reused by replacing variables with values at runtime. For example, you can use Mixy to create a Flask web app project by combining multiple templates from GitHub.
+Mixy is a CLI tool used to create projects based on one or more templates. Templates can be files, directories, git repositories, or any other supported source of content, and allow you to customize them with variables. It combines the templates into a single project directory. As a flexible tool, Mixy uses a configuration file to define a project, which can be reused since variables are replaced with values at runtime. For example, you can use Mixy to create a Flask web app project by combining multiple templates from GitHub.
 
 > **Warning** This project is in early development and is rapidly evolving.
 > This means you can expect:
