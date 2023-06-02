@@ -8,14 +8,9 @@ from jinja2 import Environment, StrictUndefined
 
 from mixy.builders.logger_builder import LoggerBuilder
 from mixy.context import Context
-from mixy.exceptions import (
-    MissingProjectConfigurationError,
-    ProjectAlreadyExistsError,
-)
+from mixy.exceptions import MissingProjectConfigurationError, ProjectAlreadyExistsError
 from mixy.models.project import Project
 from mixy.preloaded_resolver import PreloadedResolver
-from mixy.prompt_resolver import PromptResolver
-from mixy.protocols.variable_resolver import VariableResolver
 from mixy.settings.project_settings import ProjectSettings
 from mixy.settings.settings import settings
 from mixy.utils import clear_directory
@@ -42,12 +37,6 @@ def get_project(destination: Path, config_file: Path) -> Project:
         # TODO make this a custom exception
         raise Exception("Unsupported project configuration format.")
     return Project(destination=destination, **project_config)
-
-
-def resolve_missing_variables(
-    config: Project, resolver: VariableResolver
-) -> dict[str, Any]:
-    return config.variables.resolve(resolver)
 
 
 @app.command(help="Create a new project.")
@@ -84,18 +73,13 @@ def create(
         if context is not None:
             logger.info(f"Importing the provided context: {context}")
             context_data: dict[str, Any] = yaml.safe_load(context.read_text()) or {}
-            ctx.update(
-                **resolve_missing_variables(project, PreloadedResolver(context_data))
-            )
-        else:
-            logger.info("Resolving missing variables")
-            ctx.update(**resolve_missing_variables(project, PromptResolver()))
+            ctx.resolver = PreloadedResolver(context_data)
 
         logger.info("Rendering the project")
         project = project.render(ctx)
 
         logger.info("Resolving dependencies")
-        project.resolve_dependencies(ctx)
+        project.create(ctx)
 
         logger.info("Project creation complete")
     except typer.Abort as e:

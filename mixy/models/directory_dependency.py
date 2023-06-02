@@ -15,7 +15,7 @@ class DirectoryDependency(RenderableBaseModel):
     src_type: Literal["directory"] = "directory"
     src: DirectoryPath
     dest: Path
-    ignores: list[str] = []
+    ignores: list[str] = [".mixy"]
 
     @property
     def iter_dependencies(self) -> Iterator[Dependency]:
