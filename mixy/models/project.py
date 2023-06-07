@@ -50,6 +50,7 @@ class Project(RenderableBaseModel):
     def create(self, context: Context) -> None:
         _context = deepcopy(context)
         _context.update(**self.variables)
+        self.render(_context)
         self.destination.mkdir(exist_ok=True)
         for dependency in self.dependencies:
             dependency.resolve(self.destination, _context)

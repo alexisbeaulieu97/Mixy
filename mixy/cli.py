@@ -75,10 +75,7 @@ def create(
             context_data: dict[str, Any] = yaml.safe_load(context.read_text()) or {}
             ctx.resolver = PreloadedResolver(context_data)
 
-        logger.info("Rendering the project")
-        project = project.render(ctx)
-
-        logger.info("Resolving dependencies")
+        logger.info("Creating the project")
         project.create(ctx)
 
         logger.info("Project creation complete")

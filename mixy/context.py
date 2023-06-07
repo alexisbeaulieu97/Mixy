@@ -1,4 +1,3 @@
-from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -18,26 +17,26 @@ class Context:
 
     @property
     def variables(self) -> dict[str, VarProtocol]:
-        return deepcopy(self._ctx)
+        return self._ctx
 
     @property
     def cache(self) -> dict[str, Any]:
-        return deepcopy(self._cache)
+        return self._cache
 
     def render(self, content: str) -> str:
         t = self.env.from_string(content)
         return t.render(self._resolve())
 
     def update(self, **kwargs: dict[str, VarProtocol]) -> None:
-        self._ctx.update(**kwargs)
+        self.variables.update(**kwargs)
         for k in kwargs:
-            if k in self._cache:
-                del self._cache[k]
+            if k in self.cache:
+                del self.cache[k]
 
     def _resolve(self) -> dict[str, Any]:
         variables = {}
-        for var_name, var_config in self._ctx.items():
-            if var_name not in self._cache:
-                self._cache[var_name] = self.resolver.resolve(var_name, var_config)
-            variables[var_name] = self._cache[var_name]
+        for var_name, var_config in self.variables.items():
+            if var_name not in self.cache:
+                self.cache[var_name] = self.resolver.resolve(var_name, var_config)
+            variables[var_name] = self.cache[var_name]
         return variables

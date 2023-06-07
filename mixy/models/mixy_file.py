@@ -1,8 +1,5 @@
-from mixy.models.template_var_config import TemplateVarConfig
-
-from .base import RenderableBaseModel
+from .vars_file import VarsFile
 
 
-class MixyFile(RenderableBaseModel):
-    variables: dict[str, TemplateVarConfig]
-    content: str
+class MixyFile(VarsFile):
+    content: str = ""
