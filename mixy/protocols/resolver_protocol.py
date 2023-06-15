@@ -4,6 +4,6 @@ from mixy.protocols.var_protocol import VarProtocol
 
 
 @runtime_checkable
-class Resolver(Protocol):
+class ResolverProtocol(Protocol):
     def resolve(self, var_name: str, var_config: VarProtocol) -> Any:
         ...

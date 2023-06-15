@@ -1,4 +1,3 @@
-from copy import deepcopy
 from pathlib import Path
 from typing import Union
 
@@ -12,7 +11,7 @@ from mixy.models.file_dependency import FileDependency
 from mixy.models.git_dependency import GitDependency
 from mixy.models.github_dependency import GitHubDependency
 from mixy.models.mixy_dependency import MixyDependency
-from mixy.models.template_var_config import TemplateVarConfig
+from mixy.models.template_var import TemplateVar
 from mixy.settings.project_settings import ProjectSettings
 from mixy.utils import clear_directory
 
@@ -29,13 +28,13 @@ ProjectDependency = Annotated[
 
 
 class Project(RenderableBaseModel):
-    _RENDERABLE_EXCLUDES = {"settings", "variables"}
+    _RENDERABLE_EXCLUDES = {"settings", "vars"}
 
     dependencies: list[ProjectDependency]
     destination: Path
 
     settings: ProjectSettings = ProjectSettings()
-    variables: dict[str, TemplateVarConfig] = {}
+    vars: dict[str, TemplateVar] = {}
 
     @property
     def exists(self) -> bool:
@@ -48,12 +47,12 @@ class Project(RenderableBaseModel):
         return not any(self.destination.iterdir())
 
     def create(self, context: Context) -> None:
-        _context = deepcopy(context)
-        _context.update(**self.variables)
-        self.render(_context)
+        context = Context.derive_from(context, **self.vars)
+        self.render(context)
         self.destination.mkdir(exist_ok=True)
         for dependency in self.dependencies:
-            dependency.resolve(self.destination, _context)
+            print("Resolving:", dependency)
+            dependency.resolve(self.destination, context)
 
     def empty(self) -> None:
         if self.exists:

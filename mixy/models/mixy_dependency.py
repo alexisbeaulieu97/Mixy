@@ -1,4 +1,3 @@
-from copy import deepcopy
 from pathlib import Path
 from typing import Literal
 
@@ -21,11 +20,8 @@ class MixyDependency(FileDependency):
         try:
             content = self.src.read_text()
             mixy_file = MixyFile(**tomllib.loads(content))
-
-            _context = deepcopy(context)
-            _context.update(**mixy_file.variables)
-
-            resolved = _context.render(mixy_file.content)
+            context = Context.derive_from(context, **mixy_file.vars)
+            resolved = context.render(mixy_file.content)
             abs_dest.write_text(resolved)
         except UnicodeDecodeError:
             content = self.src.read_bytes()
