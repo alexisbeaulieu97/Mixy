@@ -73,7 +73,7 @@ class NameBasedEnum(Enum):
         yield cls.validate
 
     @classmethod
-    def validate(cls, v):
+    def validate(cls, v) -> Self:
         if isinstance(v, cls):
             return v
         if v in cls.value_lookup:

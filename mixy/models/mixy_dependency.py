@@ -15,6 +15,8 @@ class MixyDependency(FileDependency):
 
     def resolve(self, into_dir: Path, context: Context) -> None:
         abs_dest = join_local_path(into_dir, self.dest)
+        if abs_dest.suffix == ".mixy":
+            abs_dest = abs_dest.with_suffix("")
         abs_dest.parent.mkdir(exist_ok=True, parents=True)
 
         try:

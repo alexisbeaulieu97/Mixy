@@ -5,6 +5,7 @@ import tomllib
 from pydantic.types import DirectoryPath
 
 from mixy.context import Context
+from mixy.models.mixy_dependency import MixyDependency
 from mixy.protocols.dependency import Dependency
 from mixy.utils import get_directory_contents, join_local_path
 
@@ -27,6 +28,8 @@ class DirectoryDependency(RenderableBaseModel):
             dest = Path("/").joinpath(x.relative_to(self.src))
             if x.is_dir():
                 yield DirectoryDependency(src=x, dest=dest, ignores=self.ignores)
+            elif x.suffix == ".mixy":
+                yield MixyDependency(src=x, dest=dest)
             else:
                 yield FileDependency(src=x, dest=dest)
 
