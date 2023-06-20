@@ -9,7 +9,6 @@ from mixy.models.base import RenderableBaseModel
 from mixy.models.directory_dependency import DirectoryDependency
 from mixy.models.file_dependency import FileDependency
 from mixy.models.git_dependency import GitDependency
-from mixy.models.github_dependency import GitHubDependency
 from mixy.models.mixy_dependency import MixyDependency
 from mixy.models.template_var import TemplateVar
 from mixy.settings.project_settings import ProjectSettings
@@ -20,7 +19,6 @@ ProjectDependency = Annotated[
         DirectoryDependency,
         FileDependency,
         GitDependency,
-        GitHubDependency,
         MixyDependency,
     ],
     Field(discriminator="src_type"),
@@ -51,7 +49,6 @@ class Project(RenderableBaseModel):
         self.render(context)
         self.destination.mkdir(exist_ok=True)
         for dependency in self.dependencies:
-            print("Resolving:", dependency)
             dependency.resolve(self.destination, context)
 
     def empty(self) -> None:

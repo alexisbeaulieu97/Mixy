@@ -23,7 +23,6 @@ class DirectoryDependency(RenderableBaseModel):
     @property
     def iter_dependencies(self) -> Iterator[Dependency]:
         dir_content = get_directory_contents(self.src, self.ignores)
-        print("it")
         for x in dir_content:
             dest = Path("/").joinpath(x.relative_to(self.src))
             if x.is_dir():
@@ -47,5 +46,4 @@ class DirectoryDependency(RenderableBaseModel):
             context = Context.derive_from(context, **template_vars)
 
         for d in self.iter_dependencies:
-            print(d)
             d.resolve(abs_dest, context)

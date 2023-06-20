@@ -5,9 +5,7 @@ from datetime import datetime, timezone, tzinfo
 from pathlib import Path
 from typing import Any, Iterable, Iterator, List, Mapping, Optional
 
-from mixy.constants import (
-    GIT_PROTOCOLS_PREFIXES,
-)
+from mixy.constants import GIT_PROTOCOLS_PREFIXES
 from mixy.exceptions import InvalidCommandError
 
 
