@@ -1,41 +1,47 @@
+from functools import cached_property
 from pathlib import Path
-from typing import Literal
-
-from pydantic import validator
+from typing import Literal, Type
 
 from mixy.context import Context
-from mixy.git_repository import GitRepository
+from mixy.git_manager import GitManager
+from mixy.github_manager import GitHubManager
+from mixy.models.base import RenderableBaseModel
+from mixy.models.directory_dependency import DirectoryDependency
+from mixy.protocols.git_manager_protocol import GitManagerProtocol
 from mixy.settings.settings import settings
-from mixy.utils import extract_repo_name, is_git_url
+from mixy.utils import extract_repo_name
 
-from .base import RenderableBaseModel
-from .directory_dependency import DirectoryDependency
+git_managers: dict[str, Type[GitManagerProtocol]] = {
+    "git": GitManager,
+    "gh": GitHubManager,
+}
 
 
 class GitDependency(RenderableBaseModel):
-    src_type: Literal["git"] = "git"
+    src_type: Literal["git", "gh"]
     src: str
-    dest: Path
     version: str
+    dest: Path = Path("/")
     ignores: list[str] = []
 
-    @validator("src")
-    def validate_src(cls, v: str) -> str:
-        if not is_git_url(v):
-            raise ValueError("src must be a git url")
-        return v
+    @cached_property
+    def _git_manager_class(self) -> Type[GitManagerProtocol]:
+        return git_managers[self.src_type]
 
     @property
     def _repo_cache_path(self) -> Path:
         return settings.cache.location.joinpath(extract_repo_name(self.src))
 
     def resolve(self, into_dir: Path, context: Context) -> None:
-        repo = GitRepository.cache_or_clone(self.src, self._repo_cache_path)
-        repo.pull()
-        repo.checkout(self.version)
-        dependency = DirectoryDependency(
-            src=repo.location,  # type: ignore
-            dest=self.dest,
-            ignores=[".git"] + self.ignores,
+        manager = self._git_manager_class.cache_or_clone(
+            self.src, self._repo_cache_path
         )
-        dependency.resolve(into_dir, context)
+        manager.pull()
+        manager.checkout(self.version)
+        if manager.location is not None:
+            dependency = DirectoryDependency(
+                src=manager.location,
+                dest=self.dest,
+                ignores=[".git"] + self.ignores,
+            )
+            dependency.resolve(into_dir, context)

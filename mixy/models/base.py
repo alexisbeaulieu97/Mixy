@@ -33,7 +33,8 @@ class RenderableBaseModel(BaseModel):
         elif isinstance(obj, Path):
             return Path(context.render(str(obj)))
         elif isinstance(obj, RenderableBaseModel):
-            return obj.render(context)
+            obj.render(context)
+            return obj
         elif isinstance(obj, dict):
             return {k: self._recursive_render(v, context) for k, v in obj.items()}
         elif isinstance(obj, list):
@@ -49,7 +50,7 @@ class RenderableBaseModel(BaseModel):
         else:
             return obj
 
-    def render(self, context: Context) -> Self:
+    def render(self, context: Context) -> None:
         templated = self.dict(
             exclude={name: True for name in self._RENDERABLE_EXCLUDES}
         )
@@ -61,7 +62,7 @@ class RenderableBaseModel(BaseModel):
             **resolved_templated,
             **not_templated,
         }
-        return self.__class__(**resolved)
+        self.merge_with(self.__class__(**resolved))
 
 
 class NameBasedEnum(Enum):
@@ -72,7 +73,7 @@ class NameBasedEnum(Enum):
         yield cls.validate
 
     @classmethod
-    def validate(cls, v):
+    def validate(cls, v) -> Self:
         if isinstance(v, cls):
             return v
         if v in cls.value_lookup:
