@@ -1,5 +1,9 @@
 <!--next-version-placeholder-->
 
+## v1.10.1 (2023-06-20)
+### Fix
+* #21 ([#25](https://github.com/alexisbeaulieu97/Mixy/issues/25)) ([`56c82bb`](https://github.com/alexisbeaulieu97/Mixy/commit/56c82bb4a2a52176a17d1f789e4c0df61bce009c))
+
 ## v1.10.0 (2023-06-20)
 ### Feature
 * Added variables to the directory level scope ([`26c33e3`](https://github.com/alexisbeaulieu97/Mixy/commit/26c33e3949c77c3f8265a473d28fa319fd83488f))
