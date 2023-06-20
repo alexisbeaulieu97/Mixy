@@ -18,14 +18,16 @@ class DirectoryDependency(RenderableBaseModel):
     src_type: Literal["directory"] = "directory"
     src: DirectoryPath
     dest: Path = Path("/")
-    ignores: list[str] = [".mixy"]
+    ignores: list[str] = []
 
     @property
     def iter_dependencies(self) -> Iterator[Dependency]:
         dir_content = get_directory_contents(self.src, self.ignores)
         for x in dir_content:
             dest = Path("/").joinpath(x.relative_to(self.src))
-            if x.is_dir():
+            if x.is_dir() and x.name == ".mixy":
+                continue
+            elif x.is_dir():
                 yield DirectoryDependency(src=x, dest=dest, ignores=self.ignores)
             elif x.suffix == ".mixy":
                 yield MixyDependency(src=x, dest=dest)
