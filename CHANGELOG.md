@@ -1,5 +1,12 @@
 <!--next-version-placeholder-->
 
+## v1.10.0 (2023-06-20)
+### Feature
+* Added variables to the directory level scope ([`26c33e3`](https://github.com/alexisbeaulieu97/Mixy/commit/26c33e3949c77c3f8265a473d28fa319fd83488f))
+
+### Documentation
+* Added readme information ([`1c35720`](https://github.com/alexisbeaulieu97/Mixy/commit/1c35720f8afdb8d2e3026adf54a4281b7ad48be2))
+
 ## v1.9.0 (2023-04-15)
 ### Feature
 * Renamed project\ ([`d871882`](https://github.com/alexisbeaulieu97/Mixy/commit/d871882afdd31f2c3dc8e0ac8027ac612cd92745))
