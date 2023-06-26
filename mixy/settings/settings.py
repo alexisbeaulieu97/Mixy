@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Self
 
-from pydantic import BaseSettings
+from pydantic import BaseSettings, Field
 
 from mixy.constants import HOME, SETTINGS_FILE_TOML, SETTINGS_FILE_YAML
 from mixy.merge_strategies import RecursiveMergeStrategy
@@ -9,6 +9,7 @@ from mixy.protocols.merge_strategy import MergeStrategy
 from mixy.settings.cache_settings import CacheSettings
 from mixy.settings.jinja_settings import JinjaSettings
 from mixy.settings.logging_settings import LoggingSettings
+from mixy.settings.plugins_settings import PluginsSettings
 from mixy.settings.sources import (
     toml_config_settings_source,
     yaml_config_settings_source,
@@ -16,9 +17,10 @@ from mixy.settings.sources import (
 
 
 class Settings(BaseSettings):
-    logs: LoggingSettings = LoggingSettings()
-    jinja: JinjaSettings = JinjaSettings()
-    cache: CacheSettings = CacheSettings()
+    logs: LoggingSettings = Field(LoggingSettings())
+    jinja: JinjaSettings = Field(JinjaSettings())
+    cache: CacheSettings = Field(CacheSettings())
+    plugins: PluginsSettings = Field(PluginsSettings())
 
     @property
     def home(self) -> Path:
@@ -32,7 +34,7 @@ class Settings(BaseSettings):
     class Config:
         env_file_encoding = "utf-8"
         env_prefix = "mixy_"
-        env_nested_delimiter = "__"
+        env_nested_delimiter = "_"
 
         @classmethod
         def customise_sources(

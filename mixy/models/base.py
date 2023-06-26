@@ -18,6 +18,7 @@ class BaseModel(BM):
         strategy.merge(self, data)
 
     class Config:
+        arbitrary_types_allowed = True
         underscore_attrs_are_private = True
         keep_untouched = (cached_property,)  # type: ignore
         validate_assignment = True

@@ -5,7 +5,7 @@ from .var_protocol import VarProtocol
 
 
 @runtime_checkable
-class VarsHandlerProtocol(Protocol):
+class VarsManagerProtocol(Protocol):
     def update(self, **kwargs: dict[str, VarProtocol]) -> None:
         ...
 

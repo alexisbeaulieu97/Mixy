@@ -1,8 +1,8 @@
 from typing import Any, Iterable
 
 
-class CacheHandler:
-    def __init__(self):
+class CacheManager:
+    def __init__(self) -> None:
         self._cache: dict[str, Any] = {}
 
     def clear_cache(self, keys: Iterable[str]) -> None:

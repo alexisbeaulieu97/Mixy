@@ -4,32 +4,33 @@ from typing import Self
 
 from jinja2 import Environment, StrictUndefined
 
-from mixy.cached_vars_handler import CachedVarsHandler
+from mixy.cached_vars_manager import CachedVarsManager
 from mixy.prompt_resolver import PromptResolver
 from mixy.protocols.resolver_protocol import ResolverProtocol
 from mixy.protocols.var_protocol import VarProtocol
-from mixy.protocols.vars_handler_protocol import VarsHandlerProtocol
+from mixy.protocols.vars_manager_protocol import VarsManagerProtocol
 
 
 @dataclass
 class Context:
-    env: Environment = Environment(undefined=StrictUndefined)
+    env: Environment = field(default=Environment(undefined=StrictUndefined))
     resolver: ResolverProtocol = field(default_factory=PromptResolver)
-    vars_handler: VarsHandlerProtocol = field(default_factory=CachedVarsHandler)
+    vars_manager: VarsManagerProtocol = field(default_factory=CachedVarsManager)
 
     def render(self, content: str) -> str:
         template = self.env.from_string(content)
-        return template.render(self.vars_handler.resolve(self.resolver))
+        resolved_vars = self.vars_manager.resolve(self.resolver)
+        return template.render(**resolved_vars)
 
     def update(self, **kwargs: dict[str, VarProtocol]) -> None:
-        self.vars_handler.update(**kwargs)
+        self.vars_manager.update(**kwargs)
 
     @classmethod
     def derive_from(cls, old_context: Self, **kwargs: dict[str, VarProtocol]) -> Self:
         new_context = cls(
             deepcopy(old_context.env),
             deepcopy(old_context.resolver),
-            deepcopy(old_context.vars_handler),
+            deepcopy(old_context.vars_manager),
         )
         new_context.update(**kwargs)
         return new_context
