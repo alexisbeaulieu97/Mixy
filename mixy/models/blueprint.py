@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 class Blueprint(BaseModel):
     scopes: dict[AbsolutePath, VarsManager] = Field({})
     templates: list[Template] = Field([])
-    env: Environment = Field(Environment())
 
     def add_scope(
         self,
@@ -53,27 +52,27 @@ class Blueprint(BaseModel):
             vars_names.update(vars_manager.get_vars_names())
         return vars_names
 
-    def build(
-        self,
-        destination: Path,
-    ) -> None:
+    def build(self, destination: Path, environment: Environment) -> None:
         for template in self.templates:
-            abs_dest = destination.joinpath(template.destination.relative_to("/"))
-            abs_dest.parent.mkdir(parents=True, exist_ok=True)
-
             vars_managers = self.get_vars_managers_for_template(template)
+            resolved_vars = {}
+            for var_name in self.get_vars_names_for_template(template):
+                for vars_manager in vars_managers:
+                    if vars_manager.has_var(var_name):
+                        resolved_vars[var_name] = vars_manager.get_value(var_name)
+                        break
+
+            abs_dest = destination.joinpath(template.destination.relative_to("/"))
+            abs_dest = Path(
+                environment.from_string(str(abs_dest)).render(**resolved_vars)
+            )
+            abs_dest.parent.mkdir(parents=True, exist_ok=True)
 
             if isinstance(template.content, bytes):
                 abs_dest.write_bytes(template.content)
             else:
-                resolved_vars = {}
-                for var_name in self.get_vars_names_for_template(template):
-                    for vars_manager in vars_managers:
-                        if vars_manager.has_var(var_name):
-                            resolved_vars[var_name] = vars_manager.get_value(var_name)
-                            break
-                template = self.env.from_string(template.content)
-                rendered_content = template.render(**resolved_vars)
+                jinja_template = environment.from_string(template.content)
+                rendered_content = jinja_template.render(**resolved_vars)
                 abs_dest.write_text(rendered_content)
 
 

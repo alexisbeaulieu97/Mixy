@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import typer
+from jinja2 import Environment, StrictUndefined
 
 from mixy.logger_builder import LoggerBuilder
 from mixy.models.blueprint import Blueprint
@@ -81,20 +82,23 @@ def create(
         project = get_project(project_file, destination)
         update_settings(project.settings)
 
-        # TODO find a way to inject the scope into the blueprints
-        # if context is not None:
-        #     context_values: dict[
-        #         str, Any
-        #     ] | None = plugin_master.hook.load_configuration(config_file=context)
-        #     if context_values is not None:
-        #         context_vars = VarsManager()
-        #         context_vars.add_values(context_values)
-        #         blueprint.add_scope(Path("/"), context_vars)
-
         blueprints = project.create()
+        global_scope = VarsManager(vars=project.vars)
+        if context is not None:
+            context_values: dict[
+                str, Any
+            ] | None = plugin_master.hook.load_configuration(config_file=context)
+            if context_values is not None:
+                global_scope.add_values(**context_values)
         for b in blueprints:
-            print(b.scopes)
-            b.build(project.destination)
+            b.add_scope(Path("/"), global_scope)
+            b.build(
+                project.destination,
+                environment=Environment(
+                    undefined=StrictUndefined,
+                    **user_settings.jinja.dict(),
+                ),
+            )
         logger.info("Project creation complete")
     except typer.Abort:
         logger.error("Project creation aborted")
