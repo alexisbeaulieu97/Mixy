@@ -1,6 +1,6 @@
 import logging
 
-from .base import NameBasedEnum
+from mixy.models.base import NameBasedEnum
 
 
 class LogLevel(NameBasedEnum):

@@ -5,16 +5,18 @@ from typing import Any
 import pytest
 from pyfakefs.fake_filesystem_unittest import FakeFilesystem  # type: ignore
 
+from mixy.pathutil import (
+    get_all_files_in_directory,
+    get_directory_contents,
+    is_empty_directory,
+    join_relative_to_root,
+)
 from mixy.utils import (
     extract_repo_name,
-    get_all_files,
-    get_directory_contents,
     get_nested_values,
     get_objects_of_type,
-    is_empty_directory,
     is_git_url,
     is_in_lists,
-    join_local_path,
     starts_with_option,
     unique_list,
 )
@@ -128,7 +130,7 @@ def test_get_all_files(fs: FakeFilesystem, files: list[Path], expected: list[Pat
     for f in files:
         fs.create_file(TEST_DIR.joinpath(f), create_missing_dirs=True)
 
-    assert get_all_files(TEST_DIR) == expected
+    assert get_all_files_in_directory(TEST_DIR) == expected
 
 
 @pytest.mark.parametrize(
@@ -167,7 +169,7 @@ def test_is_empty_directory(fs: FakeFilesystem, files: list[Path], expected: boo
     ],
 )
 def test_join_local_path(a: Path, b: Path, expected: Path):
-    assert join_local_path(a, b) == expected
+    assert join_relative_to_root(a, b) == expected
 
 
 @pytest.mark.parametrize(

@@ -1,14 +1,16 @@
+from __future__ import annotations
+
 from enum import Enum
 from functools import cached_property
-from pathlib import Path
-from typing import Any, Self
+from typing import TYPE_CHECKING, Self
 
 from pydantic import BaseModel as BM
 from pydantic import Extra
 
-from mixy.context import Context
 from mixy.merge_strategies import RecursiveMergeStrategy
-from mixy.protocols.merge_strategy import MergeStrategy
+
+if TYPE_CHECKING:
+    from mixy.protocols.merge_strategy import MergeStrategy
 
 
 class BaseModel(BM):
@@ -23,47 +25,6 @@ class BaseModel(BM):
         keep_untouched = (cached_property,)  # type: ignore
         validate_assignment = True
         extra = Extra.forbid
-
-
-class RenderableBaseModel(BaseModel):
-    _RENDERABLE_EXCLUDES: set[str] = set()
-
-    def _recursive_render(self, obj: Any, context: Context) -> Any:
-        if isinstance(obj, str):
-            return context.render(obj)
-        elif isinstance(obj, Path):
-            return Path(context.render(str(obj)))
-        elif isinstance(obj, RenderableBaseModel):
-            obj.render(context)
-            return obj
-        elif isinstance(obj, dict):
-            return {k: self._recursive_render(v, context) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [self._recursive_render(x, context) for x in obj]
-        elif hasattr(obj, "__dict__"):
-            fields: dict[str, Any] = obj.__dict__
-            for k, v in fields.items():
-                if k.startswith("__"):
-                    continue
-                new_value = self._recursive_render(v, context)
-                setattr(obj, k, new_value)
-            return obj
-        else:
-            return obj
-
-    def render(self, context: Context) -> None:
-        templated = self.dict(
-            exclude={name: True for name in self._RENDERABLE_EXCLUDES}
-        )
-        not_templated = self.dict(
-            include={name: True for name in self._RENDERABLE_EXCLUDES}
-        )
-        resolved_templated = self._recursive_render(templated, context)
-        resolved: dict[str, Any] = {
-            **resolved_templated,
-            **not_templated,
-        }
-        self.merge_with(self.__class__(**resolved))
 
 
 class NameBasedEnum(Enum):

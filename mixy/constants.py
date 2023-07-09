@@ -1,6 +1,9 @@
 import os
 from pathlib import Path
 
+# PLUGINS
+PLUGIN_PROJECT_NAME = "mixy"
+
 # HOME
 MIXY_HOME = "MIXY_HOME"
 DEFAULT_HOME_PATH = Path.home().joinpath(".mixy")

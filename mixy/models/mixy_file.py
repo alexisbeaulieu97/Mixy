@@ -1,7 +1,7 @@
-from .base import RenderableBaseModel
-from .template_var import TemplateVar
+from mixy.models.base import BaseModel
+from mixy.models.template_var import TemplateVar
 
 
-class MixyFile(RenderableBaseModel):
+class MixyFile(BaseModel):
     content: str = ""
     vars: dict[str, TemplateVar] = {}

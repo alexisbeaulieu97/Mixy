@@ -50,6 +50,3 @@ class Settings(BaseSettings):
                 env_settings,
                 file_secret_settings,
             )
-
-
-settings = Settings()

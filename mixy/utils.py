@@ -1,12 +1,9 @@
 import re
-import shutil
 import subprocess
 from datetime import datetime, timezone, tzinfo
-from pathlib import Path
-from typing import Any, Iterable, Iterator, List, Mapping, Optional
+from typing import Any, Iterable, Iterator, Mapping, Optional
 
 from mixy.constants import GIT_PROTOCOLS_PREFIXES
-from mixy.exceptions import InvalidCommandError
 
 
 def extract_repo_name(url: str) -> str:
@@ -14,10 +11,10 @@ def extract_repo_name(url: str) -> str:
     Extracts the repository name from a given URL.
 
     Args:
-    url (str): The URL of the repository.
+        url (str): The URL of the repository.
 
     Returns:
-    str: The name of the repository.
+        str: The name of the repository.
     """
     return url.split("/")[-1].replace(".git", "")
 
@@ -53,16 +50,16 @@ def starts_with_option(s: str, options: Iterable[str]) -> bool:
     return any(s.startswith(option) for option in options)
 
 
-def unique_list(l: list[Any]) -> list[Any]:
+def unique_list(li: list[Any]) -> list[Any]:
     """
     This function takes a list of elements `l` and returns a new list containing
     only the unique elements from `l`.
 
     Args:
-        l (List[Any]): A list of elements.
+        li (list[Any]): A list of elements.
 
     Returns:
-        List[Any]: A list of unique elements from `l`.
+        list[Any]: A list of unique elements from `li`.
 
     Examples:
         >>> unique_list([1, 2, 3, 1, 2])
@@ -70,92 +67,7 @@ def unique_list(l: list[Any]) -> list[Any]:
         >>> unique_list(['a', 'b', 'a', 'c'])
         ['a', 'b', 'c']
     """
-    return list(set(l))
-
-
-def get_all_files(
-    base_dir: Path, dir_ignores: Optional[list[str]] = None
-) -> List[Path]:
-    """
-    This function recursively traverses the directory tree rooted
-    at `base_dir`and returns a list of all files in the tree.
-    It ignores any subdirectories whose names appear in the `dir_ignores` list.
-
-    Args:
-        base_dir (Path): The root directory of the directory tree to traverse.
-        dir_ignores (Optional[List[str]]): A list of directory names to ignore.
-
-    Returns:
-        List[Path]: A list of all files in the directory tree rooted at `base_dir`,
-        ignoring any subdirectories whose names appear in `dir_ignores`.
-    """
-    if dir_ignores is None:
-        dir_ignores = []
-    files: list[Path] = []
-    for item in base_dir.iterdir():
-        if item.is_dir() and item.name not in dir_ignores:
-            files.extend(get_all_files(item, dir_ignores))
-        elif item.is_file():
-            files.append(item)
-
-    return files
-
-
-def is_empty_directory(path: Path) -> bool:
-    """
-    Determines if a directory is empty.
-
-    Args:
-        path (Path): The path of the directory to check.
-
-    Returns:
-        bool: True if the directory is empty, False otherwise.
-    """
-    return path.is_dir() and not list(path.glob("*"))
-
-
-def join_local_path(a: Path, b: Path) -> Path:
-    """
-    This function combines two local file paths, `a` and `b`,
-    and returns a new `Path` object that is the result of appending `b` to `a`
-    after making `b` relative to the root path `/`.
-
-    Args:
-        a (Path): The first path to join.
-        b (Path): The second path to join.
-
-    Example:
-        >>> join_local_path(Path("/home/user/dir"), Path("/usr/local/bin"))
-        Path("/home/user/dir/usr/local/bin")
-    """
-    return a.joinpath(b.relative_to("/"))
-
-
-def get_directory_contents(
-    d: Path, ignores: Optional[list[str]] = None, recurse: bool = False
-) -> List[Path]:
-    """
-    Retrieve a list of all files and directories contained within the given directory.
-
-    Args:
-        d (Path): The directory to retrieve the contents of.
-
-    Returns:
-        A list of `Path` objects, each representing
-        a file or directory contained within `d`.
-
-    Raises:
-        ValueError: If the given `Path` object does not represent a valid directory.
-    """
-    if ignores is None:
-        ignores = []
-    if not d.is_dir():
-        raise ValueError(f"{d} is not a valid directory")
-    files_and_dirs = d.rglob("*") if recurse else d.glob("*")
-    ignored: list[Path] = []
-    for ignore in ignores:
-        ignored.extend(d.glob(ignore))
-    return list(set(files_and_dirs) - set(ignored))
+    return list(set(li))
 
 
 def get_nested_values(d: Mapping[Any, Any]) -> Iterator[Any]:
@@ -187,7 +99,7 @@ def get_objects_of_type(
         ignores (tuple[type]): The types to ignore.
 
     Returns:
-        List[Any]: A list of objects of the given type within the input object.
+        list[Any]: A list of objects of the given type within the input object.
 
     Examples:
         >>> get_objects_of_type([1, 2, 'foo', ['bar', 3]], str)
@@ -244,16 +156,6 @@ def get_current_time(tz: Optional[tzinfo] = None) -> datetime:
     return datetime.now(tz)
 
 
-def clear_directory(dir_path: Path) -> None:
-    """
-    Resursively remove all files and directories within the given directory.
-
-    Args:
-        dir_path (Path): The path of the directory to clear.
-    """
-    shutil.rmtree(dir_path.absolute().as_posix())
-
-
 def is_format(data: str, formats: Iterable[str]) -> bool:
     for f in formats:
         m = re.match(f, data)
@@ -265,7 +167,7 @@ def is_format(data: str, formats: Iterable[str]) -> bool:
 def run_github_command(*opts: str) -> subprocess.CompletedProcess:
     for o in opts:
         if not isinstance(o, str):
-            raise InvalidCommandError("Command options must be of type 'str'")
+            raise TypeError("Command options must be of type 'str'")
 
     return subprocess.run(
         ["gh", *opts],
