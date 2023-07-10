@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import tomllib
 
-from mixy.models.blueprint import Blueprint
 from mixy.models.mixy_file import MixyFile
-from mixy.models.source_meta import SourceMeta
 from mixy.models.template import Template
 from mixy.plugins.builtin import hook_impl
 from mixy.vars_manager import VarsManager
+
+if TYPE_CHECKING:
+    from mixy.models.blueprint import Blueprint
+    from mixy.models.source_meta import SourceMeta
 
 
 @hook_impl

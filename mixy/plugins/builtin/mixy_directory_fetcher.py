@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 
 import tomllib
 
-from mixy.models.blueprint import Blueprint
 from mixy.vars_manager import VarsManager
 
 if TYPE_CHECKING:
+    from mixy.models.blueprint import Blueprint
     from mixy.models.source_meta import SourceMeta
 
 from mixy.plugins.builtin import hook_impl

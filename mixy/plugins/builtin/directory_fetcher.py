@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from mixy.models.blueprint import Blueprint
 from mixy.models.source_meta import SourceMeta
-from mixy.models.template import Template
 from mixy.pathutil import get_directory_contents, join_relative_to_root
 from mixy.plugins.builtin import hook_impl
 from mixy.plugins.plugin_manager import plugin_master
+
+if TYPE_CHECKING:
+    from mixy.models.blueprint import Blueprint
 
 
 @hook_impl(trylast=True)

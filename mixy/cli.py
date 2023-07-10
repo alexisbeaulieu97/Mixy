@@ -5,10 +5,7 @@ import typer
 from jinja2 import Environment, StrictUndefined
 
 from mixy.logger_builder import LoggerBuilder
-from mixy.models.blueprint import Blueprint
 from mixy.models.project import Project
-from mixy.models.template import Template
-from mixy.models.template_var import TemplateVar
 from mixy.pathutil import clear_directory, is_empty_directory, load_configuration_file
 from mixy.plugins.plugin_manager import plugin_master
 from mixy.settings import user_settings
@@ -91,7 +88,7 @@ def create(
             if context_values is not None:
                 global_scope.add_values(**context_values)
         for b in blueprints:
-            b.add_scope(Path("/"), global_scope)
+            b.global_scope = global_scope
             b.build(
                 project.destination,
                 environment=Environment(

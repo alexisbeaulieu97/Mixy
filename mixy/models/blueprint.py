@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from jinja2 import Environment
 from pydantic import Field
 
 from mixy.models.base import BaseModel
+from mixy.vars_manager import VarsManager
 
 if TYPE_CHECKING:
     from mixy.models.field_types import AbsolutePath
     from mixy.models.template import Template
-    from mixy.vars_manager import VarsManager
 
 
 class Blueprint(BaseModel):
+    global_scope: Optional[VarsManager] = Field(None)
     scopes: dict[AbsolutePath, VarsManager] = Field({})
     templates: list[Template] = Field([])
 
@@ -36,6 +37,8 @@ class Blueprint(BaseModel):
         template: Template,
     ) -> list[VarsManager]:
         vars_managers: list[VarsManager] = []
+        if self.global_scope is not None:
+            vars_managers.append(self.global_scope)
         scope_path = Path("/")
         for part in template.destination.parts:
             scope_path = scope_path / part
