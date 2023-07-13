@@ -7,7 +7,7 @@ from mixy.models.template_var import TemplateVar
 from mixy.plugins.plugin_manager import plugin_master
 
 
-class VarsManager(BaseModel):
+class CachedVarsManager(BaseModel):
     # TODO when we add vars, should we remove the values from the cache?
     vars: dict[str, TemplateVar] = {}
     _cache: dict[str, Any] = {}

@@ -24,6 +24,7 @@ class Project(BaseModel):
             plugin_master.hook.fetch(
                 source=dependency,
                 blueprint=blueprint,
+                plugin_master=plugin_master,
             )
             blueprints.append(blueprint)
         return blueprints

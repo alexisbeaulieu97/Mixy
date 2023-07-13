@@ -4,13 +4,13 @@ from typing import Any
 import typer
 from jinja2 import Environment, StrictUndefined
 
+from mixy.cached_vars_manager import CachedVarsManager
 from mixy.logger_builder import LoggerBuilder
 from mixy.models.project import Project
 from mixy.pathutil import clear_directory, is_empty_directory, load_configuration_file
 from mixy.plugins.plugin_manager import plugin_master
 from mixy.settings import user_settings
 from mixy.settings.project_settings import ProjectSettings
-from mixy.vars_manager import VarsManager
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 logger = LoggerBuilder.with_settings(user_settings.logs, __name__)
@@ -80,7 +80,7 @@ def create(
         update_settings(project.settings)
 
         blueprints = project.create()
-        global_scope = VarsManager(vars=project.vars)
+        global_scope = CachedVarsManager(vars=project.vars)
         if context is not None:
             context_values: dict[
                 str, Any
@@ -91,7 +91,7 @@ def create(
             b.global_scope = global_scope
             b.build(
                 project.destination,
-                environment=Environment(
+                env=Environment(
                     undefined=StrictUndefined,
                     **user_settings.jinja.dict(),
                 ),

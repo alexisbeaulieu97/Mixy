@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from mixy.models.blueprint import Blueprint
     from mixy.models.source_meta import SourceMeta
     from mixy.models.template_var import TemplateVar
+    from mixy.plugins.plugin_manager import PluginManager
 
 hook_spec = pluggy.HookspecMarker(PLUGIN_PROJECT_NAME)
 
@@ -21,22 +22,11 @@ def load_configuration(config_file: Path) -> dict[str, Any]:
 
 
 @hook_spec(firstresult=True)
-def fetch(source: SourceMeta, blueprint: Blueprint) -> bool | None:
+def fetch(
+    source: SourceMeta, blueprint: Blueprint, plugin_master: PluginManager
+) -> bool | None:
     ...
 
-
-# TODO to be decided
 @hook_spec(firstresult=True)
-def parse() -> None:
-    ...
-
-
-# TODO to be decided
-@hook_spec(firstresult=True)
-def handle() -> None:
-    ...
-
-
-@hook_spec(firstresult=True)
-def resolve(var_name: str, var_config: TemplateVar) -> Any:
+def output() -> bool | None:
     ...

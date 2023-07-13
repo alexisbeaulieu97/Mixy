@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from jinja2 import Environment
 from pydantic import Field
 
+from mixy.cached_vars_manager import CachedVarsManager
 from mixy.models.base import BaseModel
-from mixy.vars_manager import VarsManager
+from mixy.models.template_var import TemplateVar
 
 if TYPE_CHECKING:
     from mixy.models.field_types import AbsolutePath
@@ -15,15 +16,16 @@ if TYPE_CHECKING:
 
 
 class Blueprint(BaseModel):
-    global_scope: Optional[VarsManager] = Field(None)
-    scopes: dict[AbsolutePath, VarsManager] = Field({})
+    global_scope: Optional[CachedVarsManager] = Field(None)
+    scopes: dict[AbsolutePath, CachedVarsManager] = Field({})
     templates: list[Template] = Field([])
 
     def add_scope(
         self,
         scope_path: AbsolutePath,
-        scope: VarsManager,
+        scope_vars: dict[str, TemplateVar],
     ) -> None:
+        scope = CachedVarsManager(vars=scope_vars)
         self.scopes[scope_path] = scope
 
     def add_template(
@@ -32,51 +34,74 @@ class Blueprint(BaseModel):
     ) -> None:
         self.templates.append(template)
 
-    def get_vars_managers_for_template(
+    def build(
+        self,
+        destination: Path,
+        env: Environment,
+    ) -> None:
+        for template in self.templates:
+            vars_managers = self._get_variable_managers(template)
+            resolved_vars = self._resolve_variables(template, vars_managers)
+
+            abs_dest = destination.joinpath(template.destination.relative_to("/"))
+            abs_dest = Path(self._render(str(abs_dest), resolved_vars, env))
+            abs_dest.parent.mkdir(parents=True, exist_ok=True)
+
+            if isinstance(template.content, bytes):
+                abs_dest.write_bytes(template.content)
+            else:
+                rendered_content = self._render(
+                    template.content,
+                    resolved_vars,
+                    env,
+                )
+                abs_dest.write_text(rendered_content)
+
+    def _render(
+        self,
+        template_string: str,
+        vars: dict[str, Any],
+        env: Environment,
+    ) -> str:
+        return env.from_string(template_string).render(**vars)
+
+    def _resolve_variables(
+        self, template: Template, vars_managers: list[CachedVarsManager]
+    ) -> dict[str, Any]:
+        """Resolve the template variables using the provided variable managers."""
+        resolved_vars = {}
+        var_names = self._get_variable_names(vars_managers)
+        for var_name in var_names:
+            for vars_manager in vars_managers:
+                if vars_manager.has_var(var_name):
+                    resolved_vars[var_name] = vars_manager.get_value(var_name)
+                    break
+        return resolved_vars
+
+    def _get_variable_names(
+        self,
+        vars_managers: list[CachedVarsManager],
+    ) -> set[str]:
+        """Return the names of all variables in the provided variable managers."""
+        vars_names: set[str] = set()
+        for vars_manager in vars_managers:
+            vars_names.update(vars_manager.get_vars_names())
+        return vars_names
+
+    def _get_variable_managers(
         self,
         template: Template,
-    ) -> list[VarsManager]:
-        vars_managers: list[VarsManager] = []
-        if self.global_scope is not None:
-            vars_managers.append(self.global_scope)
+    ) -> list[CachedVarsManager]:
+        """Return the variable managers for the provided template."""
+        vars_managers: list[CachedVarsManager] = (
+            [self.global_scope] if self.global_scope is not None else []
+        )
         scope_path = Path("/")
         for part in template.destination.parts:
             scope_path = scope_path / part
             if scope_path in self.scopes:
                 vars_managers.insert(0, self.scopes[scope_path])
         return vars_managers
-
-    def get_vars_names_for_template(
-        self,
-        template: Template,
-    ) -> set[str]:
-        vars_names: set[str] = set()
-        for vars_manager in self.get_vars_managers_for_template(template):
-            vars_names.update(vars_manager.get_vars_names())
-        return vars_names
-
-    def build(self, destination: Path, environment: Environment) -> None:
-        for template in self.templates:
-            vars_managers = self.get_vars_managers_for_template(template)
-            resolved_vars = {}
-            for var_name in self.get_vars_names_for_template(template):
-                for vars_manager in vars_managers:
-                    if vars_manager.has_var(var_name):
-                        resolved_vars[var_name] = vars_manager.get_value(var_name)
-                        break
-
-            abs_dest = destination.joinpath(template.destination.relative_to("/"))
-            abs_dest = Path(
-                environment.from_string(str(abs_dest)).render(**resolved_vars)
-            )
-            abs_dest.parent.mkdir(parents=True, exist_ok=True)
-
-            if isinstance(template.content, bytes):
-                abs_dest.write_bytes(template.content)
-            else:
-                jinja_template = environment.from_string(template.content)
-                rendered_content = jinja_template.render(**resolved_vars)
-                abs_dest.write_text(rendered_content)
 
 
 # we need a way for plugins to add variables relative to a path in the blueprint

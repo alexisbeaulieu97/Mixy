@@ -6,14 +6,16 @@ from typing import TYPE_CHECKING
 from mixy.models.source_meta import SourceMeta
 from mixy.pathutil import get_directory_contents, join_relative_to_root
 from mixy.plugins.builtin import hook_impl
-from mixy.plugins.plugin_manager import plugin_master
 
 if TYPE_CHECKING:
     from mixy.models.blueprint import Blueprint
+    from mixy.plugins.plugin_manager import PluginManager
 
 
 @hook_impl(trylast=True)
-def fetch(source: SourceMeta, blueprint: Blueprint) -> bool | None:
+def fetch(
+    source: SourceMeta, blueprint: Blueprint, plugin_master: PluginManager
+) -> bool | None:
     if source.src_type != "directory" or not Path(source.src).is_dir():
         return
     src = Path(source.src)
@@ -26,5 +28,6 @@ def fetch(source: SourceMeta, blueprint: Blueprint) -> bool | None:
                 dest=join_relative_to_root(source.dest, content.relative_to(src)),
             ),
             blueprint=blueprint,
+            plugin_master=plugin_master,
         )
     return True
