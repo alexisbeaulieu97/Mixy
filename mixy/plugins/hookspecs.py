@@ -27,6 +27,12 @@ def fetch(
 ) -> bool | None:
     ...
 
+
 @hook_spec(firstresult=True)
 def output() -> bool | None:
+    ...
+
+
+@hook_spec(firstresult=True)
+def resolve(var_name: str, var_config: TemplateVar) -> Any | None:
     ...
