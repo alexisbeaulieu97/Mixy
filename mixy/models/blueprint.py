@@ -9,6 +9,7 @@ from pydantic import Field
 from mixy.cached_vars_manager import CachedVarsManager
 from mixy.models.base import BaseModel
 from mixy.models.template_var import TemplateVar
+from mixy.plugins.plugin_manager import plugin_master
 
 if TYPE_CHECKING:
     from mixy.models.field_types import AbsolutePath
@@ -43,19 +44,47 @@ class Blueprint(BaseModel):
             vars_managers = self._get_variable_managers(template)
             resolved_vars = self._resolve_variables(template, vars_managers)
 
-            abs_dest = destination.joinpath(template.destination.relative_to("/"))
-            abs_dest = Path(self._render(str(abs_dest), resolved_vars, env))
-            abs_dest.parent.mkdir(parents=True, exist_ok=True)
+            abs_dest = self._get_template_destination(
+                destination,
+                template,
+                resolved_vars,
+                env,
+            )
 
-            if isinstance(template.content, bytes):
-                abs_dest.write_bytes(template.content)
-            else:
-                rendered_content = self._render(
-                    template.content,
-                    resolved_vars,
-                    env,
-                )
-                abs_dest.write_text(rendered_content)
+            self._write_template_content(
+                abs_dest,
+                template,
+                resolved_vars,
+                env,
+            )
+
+    def _write_template_content(
+        self,
+        destination: Path,
+        template: Template,
+        resolved_vars: dict[str, Any],
+        env: Environment,
+    ) -> None:
+        content = template.content
+        if isinstance(template.content, str):
+            content = self._render(
+                template.content,
+                resolved_vars,
+                env,
+            )
+        plugin_master.hook.output(destination=destination, content=content)
+
+    def _get_template_destination(
+        self,
+        destination: Path,
+        template: Template,
+        resolved_vars: dict[str, Any],
+        env: Environment,
+    ) -> Path:
+        template_dest = destination.joinpath(template.destination.relative_to("/"))
+        template_dest = Path(self._render(str(template_dest), resolved_vars, env))
+        template_dest.parent.mkdir(parents=True, exist_ok=True)
+        return template_dest
 
     def _render(
         self,

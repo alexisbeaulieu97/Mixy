@@ -28,8 +28,8 @@ def fetch(
     ...
 
 
-@hook_spec(firstresult=True)
-def output() -> bool | None:
+@hook_spec
+def output(destination: Path, content: str | bytes) -> None:
     ...
 
 
