@@ -2,177 +2,225 @@
 package plugin
 
 import (
+	"errors" // Import standard errors
 	"fmt"
-	"log" // Keep standard log for manager's own messages if desired
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 
-	shared "github.com/alexisbeaulieu97/Mixy/pkg/plugin"
-	"github.com/hashicorp/go-hclog" // Import hclog
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+
+	// REMOVE core import: "github.com/alexisbeaulieu97/Mixy/internal/core"
+	shared "github.com/alexisbeaulieu97/Mixy/pkg/plugin" // Keep shared import
 )
+
+// slogToHclogWriter adapts slog.Logger to io.Writer interface used by hclog
+type slogToHclogWriter struct {
+	logger *slog.Logger
+}
+
+// Write implements io.Writer, converting hclog output to slog format
+func (w slogToHclogWriter) Write(p []byte) (n int, err error) {
+	w.logger.Info(strings.TrimSpace(string(p)))
+	return len(p), nil
+}
 
 // Manager handles discovery and management of Mixy plugins.
 type Manager struct {
-	pluginDir     string                            // Directory to scan for plugins (optional)
-	clients       map[string]*plugin.Client         // Map plugin executable path to client
-	loaderPlugins map[string]shared.LoaderInterface // Map plugin name to loader interface
-	hookPlugins   map[string]shared.HookInterface   // Map plugin name to hook interface
+	pluginDir     string
+	clients       map[string]*plugin.Client
+	loaderPlugins map[string]shared.LoaderInterface // Key is plugin name from metadata
+	hookPlugins   map[string]shared.HookInterface   // Key is plugin name from metadata
+	logger        *slog.Logger
 	mu            sync.RWMutex
 	isLoaded      bool
 }
 
 // NewManager creates a new plugin manager.
-// pluginDir: Optional directory to explicitly scan for plugins. If empty, scans PATH.
-func NewManager(pluginDir string) *Manager {
+func NewManager(pluginDir string, logger *slog.Logger) *Manager {
 	return &Manager{
 		pluginDir:     pluginDir,
 		clients:       make(map[string]*plugin.Client),
 		loaderPlugins: make(map[string]shared.LoaderInterface),
 		hookPlugins:   make(map[string]shared.HookInterface),
+		logger:        logger.With(slog.String("component", "plugin_manager")),
 	}
 }
 
 // DiscoverAndLoad finds plugins and connects to them.
-// Should be called once during initialization.
+// Returns standard errors; caller should wrap if necessary.
 func (m *Manager) DiscoverAndLoad() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.isLoaded {
-		log.Println("Plugins already loaded.")
+		m.logger.Debug("Plugins already loaded.")
 		return nil
 	}
 
-	log.Println("Discovering Mixy plugins...")
+	m.logger.Info("Discovering Mixy plugins...")
 
 	pluginExecutables, err := m.findPluginExecutables()
 	if err != nil {
-		return fmt.Errorf("failed to find plugin executables: %w", err)
+		m.logger.Error("Failed to find plugin executables", slog.Any("error", err))
+		// Return standard error
+		return fmt.Errorf("plugin discovery failed: %w", err)
 	}
 
 	if len(pluginExecutables) == 0 {
-		log.Println("No Mixy plugins found.")
+		m.logger.Info("No Mixy plugins found.")
 		m.isLoaded = true
 		return nil
 	}
 
-	log.Printf("Found potential plugins: %v\n", pluginExecutables)
+	m.logger.Info("Found potential plugins", slog.Any("paths", pluginExecutables))
 
-	// --- Fix Start: Use hclog ---
-	// Configure hclog logger for plugins
-	pluginLogger := hclog.New(&hclog.LoggerOptions{
-		Name:  "mixy-plugin",
-		Level: hclog.Info, // Or hclog.Debug for more verbose output
-		// Output: os.Stderr, // Default is stderr, customize if needed
+	// Create an hclog adapter that wraps our slog.Logger
+	hclogAdapter := hclog.New(&hclog.LoggerOptions{
+		Name:   "plugin",
+		Level:  hclog.Info,
+		Output: slogToHclogWriter{logger: m.logger.With(slog.String("source", "go-plugin"))},
 	})
-	// --- Fix End ---
 
 	for _, path := range pluginExecutables {
+		logger := m.logger.With(slog.String("plugin_path", path))
 		client := plugin.NewClient(&plugin.ClientConfig{
 			HandshakeConfig: shared.Handshake,
 			Plugins:         shared.PluginMap,
 			Cmd:             exec.Command(path),
 			Managed:         true,
-			Logger:          pluginLogger, // Use the hclog logger here
-			// SecureConfig: &plugin.SecureConfig{...}
+			Logger:          hclogAdapter,
 		})
-		// ... (rest of the loop remains the same) ...
+		m.clients[path] = client
 
-		m.clients[path] = client // Store client for cleanup
-
+		logger.Debug("Attempting to connect to plugin")
 		rpcClient, err := client.Client()
 		if err != nil {
-			// Use the hclog logger for plugin-related errors
-			pluginLogger.Error("Error connecting to plugin", "path", path, "error", err)
+			logger.Error("Error connecting to plugin RPC", slog.Any("error", err))
 			client.Kill()
 			delete(m.clients, path)
-			continue
+			continue // Skip this plugin
 		}
 
-		// --- Plugin Dispensing Logic (using pluginLogger for errors) ---
+		dispensedSomething := false
 
-		dispensedLoader := false
+		// Try Loader
+		logger.Debug("Attempting to dispense loader interface")
 		rawLoader, err := rpcClient.Dispense(string(shared.LoaderPluginType))
 		if err == nil {
 			loader := rawLoader.(shared.LoaderInterface)
-			meta, errMeta := loader.GetMetadata() // Renamed err to avoid shadowing outer err
+			meta, errMeta := loader.GetMetadata()
 			if errMeta != nil {
-				pluginLogger.Error("Error getting metadata from loader plugin", "path", path, "error", errMeta)
-			} else if meta.Type != shared.LoaderPluginType {
-				pluginLogger.Warn("Plugin metadata type mismatch for loader", "plugin_name", meta.Name, "path", path, "metadata_type", meta.Type)
-			} else {
+				logger.Error("Error getting metadata from loader plugin", slog.Any("error", errMeta))
+				// Decide if this is fatal for the plugin. Let's skip it.
+			} else if errVal := m.validateMetadata(meta, shared.LoaderPluginType, path, logger); errVal == nil {
 				if _, exists := m.loaderPlugins[meta.Name]; exists {
-					pluginLogger.Warn("Loader plugin name conflict", "plugin_name", meta.Name, "ignored_path", path)
+					logger.Warn("Loader plugin name conflict. Ignoring plugin.", slog.String("plugin_name", meta.Name))
 				} else {
-					pluginLogger.Info("Registered Loader Plugin", "name", meta.Name, "version", meta.Version, "path", path)
+					logger.Info("Registered Loader Plugin", slog.String("name", meta.Name), slog.String("plugin_version", meta.PluginVersion), slog.String("api_version", meta.APIVersion))
 					m.loaderPlugins[meta.Name] = loader
-					dispensedLoader = true
+					dispensedSomething = true
 				}
-			}
+			} // validateMetadata logs errors and returns standard error
 		} else if !strings.Contains(err.Error(), "unknown service") {
-			pluginLogger.Error("Error dispensing loader interface", "path", path, "error", err)
+			logger.Error("Error dispensing loader interface", slog.Any("error", err))
 		}
 
-		dispensedHook := false
+		// Try Hook
+		logger.Debug("Attempting to dispense hook interface")
 		rawHook, err := rpcClient.Dispense(string(shared.HookPluginType))
 		if err == nil {
 			hook := rawHook.(shared.HookInterface)
-			meta, errMeta := hook.GetMetadata() // Renamed err
+			meta, errMeta := hook.GetMetadata()
 			if errMeta != nil {
-				pluginLogger.Error("Error getting metadata from hook plugin", "path", path, "error", errMeta)
-			} else if meta.Type != shared.HookPluginType {
-				pluginLogger.Warn("Plugin metadata type mismatch for hook", "plugin_name", meta.Name, "path", path, "metadata_type", meta.Type)
-			} else {
+				logger.Error("Error getting metadata from hook plugin", slog.Any("error", errMeta))
+			} else if errVal := m.validateMetadata(meta, shared.HookPluginType, path, logger); errVal == nil {
 				if _, exists := m.hookPlugins[meta.Name]; exists {
-					pluginLogger.Warn("Hook plugin name conflict", "plugin_name", meta.Name, "ignored_path", path)
+					logger.Warn("Hook plugin name conflict. Ignoring plugin.", slog.String("plugin_name", meta.Name))
 				} else {
-					pluginLogger.Info("Registered Hook Plugin", "name", meta.Name, "version", meta.Version, "path", path)
+					logger.Info("Registered Hook Plugin", slog.String("name", meta.Name), slog.String("plugin_version", meta.PluginVersion), slog.String("api_version", meta.APIVersion))
 					m.hookPlugins[meta.Name] = hook
-					dispensedHook = true
+					dispensedSomething = true
 				}
 			}
 		} else if !strings.Contains(err.Error(), "unknown service") {
-			pluginLogger.Error("Error dispensing hook interface", "path", path, "error", err)
+			logger.Error("Error dispensing hook interface", slog.Any("error", err))
 		}
 
-		if !dispensedLoader && !dispensedHook {
-			pluginLogger.Warn("Plugin did not provide recognized interfaces. Unloading.", "path", path)
+		if !dispensedSomething {
+			logger.Warn("Plugin did not provide any recognized & valid Mixy plugin interfaces. Unloading.", slog.String("path", path))
 			client.Kill()
 			delete(m.clients, path)
 		}
 	}
 
 	m.isLoaded = true
-	log.Println("Plugin discovery and loading complete.") // Keep using standard log for manager status
+	m.logger.Info("Plugin discovery and loading complete.")
+	return nil // Success
+}
+
+// validateMetadata checks required fields and API version compatibility.
+// Returns standard errors.
+func (m *Manager) validateMetadata(meta shared.PluginMetadata, expectedType shared.PluginType, path string, logger *slog.Logger) error {
+	if meta.Name == "" {
+		logger.Error("Plugin metadata validation failed: Name is missing.", slog.String("plugin_path", path))
+		return errors.New("plugin name missing")
+	}
+	if meta.APIVersion == "" {
+		logger.Error("Plugin metadata validation failed: APIVersion is missing.", slog.String("plugin_name", meta.Name))
+		return errors.New("plugin APIVersion missing")
+	}
+	if meta.Type != expectedType {
+		logger.Error("Plugin metadata validation failed: Type mismatch.", slog.String("plugin_name", meta.Name), slog.String("expected_type", string(expectedType)), slog.String("actual_type", string(meta.Type)))
+		return errors.New("plugin type mismatch")
+	}
+
+	// --- API Version Check ---
+	if meta.APIVersion != shared.MixyPluginAPIVersion {
+		errMsg := fmt.Sprintf("plugin '%s' API version '%s' incompatible with host API version '%s'", meta.Name, meta.APIVersion, shared.MixyPluginAPIVersion)
+		logger.Error("Plugin API version mismatch.",
+			slog.String("plugin_name", meta.Name),
+			slog.String("plugin_api_version", meta.APIVersion),
+			slog.String("host_api_version", shared.MixyPluginAPIVersion),
+		)
+		// Return standard error
+		return errors.New(errMsg)
+	}
+
+	logger.Debug("Plugin metadata validated successfully", slog.String("plugin_name", meta.Name))
 	return nil
 }
 
 // findPluginExecutables searches for files like "mixy-plugin-*"
+// Returns standard errors.
 func (m *Manager) findPluginExecutables() ([]string, error) {
 	var paths []string
-	seen := make(map[string]struct{}) // Avoid duplicates
+	seen := make(map[string]struct{})
 
-	// 1. Search explicit plugin directory if provided
+	// 1. Search explicit plugin directory
 	if m.pluginDir != "" {
 		absPluginDir, err := filepath.Abs(m.pluginDir)
 		if err != nil {
-			log.Printf("Warning: Cannot get absolute path for plugin directory '%s': %v\n", m.pluginDir, err)
+			m.logger.Warn("Cannot get absolute path for plugin directory", "dir", m.pluginDir, "error", err)
+			// Continue searching PATH
 		} else {
+			m.logger.Debug("Scanning plugin directory", "dir", absPluginDir)
 			files, err := os.ReadDir(absPluginDir)
 			if err != nil && !os.IsNotExist(err) {
-				log.Printf("Warning: Cannot read plugin directory '%s': %v\n", absPluginDir, err)
+				m.logger.Warn("Cannot read plugin directory", "dir", absPluginDir, "error", err)
+				// Continue searching PATH
 			} else if err == nil {
 				for _, file := range files {
 					if !file.IsDir() && strings.HasPrefix(file.Name(), "mixy-plugin-") {
-						// Basic check for executable bit (might not be perfect cross-platform)
-						info, err := file.Info()
-						if err == nil && (info.Mode()&0111 != 0) {
+						info, errInfo := file.Info()
+						if errInfo == nil && (info.Mode()&0111 != 0) {
 							fullPath := filepath.Join(absPluginDir, file.Name())
 							if _, ok := seen[fullPath]; !ok {
+								m.logger.Debug("Found potential plugin", "path", fullPath)
 								paths = append(paths, fullPath)
 								seen[fullPath] = struct{}{}
 							}
@@ -181,28 +229,30 @@ func (m *Manager) findPluginExecutables() ([]string, error) {
 				}
 			}
 		}
+	} else {
+		m.logger.Debug("No explicit plugin directory specified, searching PATH.")
 	}
 
-	// 2. Search PATH environment variable
+	// 2. Search PATH
 	sysPath := os.Getenv("PATH")
 	pathDirs := filepath.SplitList(sysPath)
+	m.logger.Debug("Scanning PATH directories", slog.Int("count", len(pathDirs)))
 	for _, dir := range pathDirs {
 		files, err := os.ReadDir(dir)
 		if err != nil {
-			continue // Ignore errors reading PATH directories
-		}
+			continue
+		} // Ignore errors reading PATH directories
 		for _, file := range files {
 			if !file.IsDir() && strings.HasPrefix(file.Name(), "mixy-plugin-") {
-				// Basic check for executable bit
-				info, err := file.Info()
-				if err == nil && (info.Mode()&0111 != 0) {
+				info, errInfo := file.Info()
+				if errInfo == nil && (info.Mode()&0111 != 0) {
 					fullPath := filepath.Join(dir, file.Name())
-					// Resolve symlinks to avoid duplicates if PATH has links
-					resolvedPath, err := filepath.EvalSymlinks(fullPath)
-					if err != nil {
-						resolvedPath = fullPath // Use original if symlink fails
+					resolvedPath, errLink := filepath.EvalSymlinks(fullPath)
+					if errLink != nil {
+						resolvedPath = fullPath
 					}
 					if _, ok := seen[resolvedPath]; !ok {
+						m.logger.Debug("Found potential plugin in PATH", "path", resolvedPath)
 						paths = append(paths, resolvedPath)
 						seen[resolvedPath] = struct{}{}
 					}
@@ -211,45 +261,44 @@ func (m *Manager) findPluginExecutables() ([]string, error) {
 		}
 	}
 
-	return paths, nil
+	if len(paths) == 0 {
+		m.logger.Debug("No plugin executables found in explicit directory or PATH.")
+	}
+	return paths, nil // No error if simply not found
 }
 
 // GetLoader checks if a loader plugin supports the given source.
-// It uses the plugin name format "plugin:<name>:<plugin-specific-source>"
-func (m *Manager) GetLoader(source string) (shared.LoaderInterface, string, bool) {
+func (m *Manager) GetLoader(source string) (loader shared.LoaderInterface, pluginSpecificSource string, ok bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	if !m.isLoaded {
-		log.Println("Warning: Attempted to get loader plugin before loading finished.")
-		return nil, "", false // Should ideally wait or error
+		m.logger.Warn("Attempted to get loader plugin before loading finished.")
+		return nil, "", false
 	}
 
-	// Check if source uses the plugin prefix format
 	if !strings.HasPrefix(source, "plugin:") {
 		return nil, "", false
 	}
 
 	parts := strings.SplitN(source, ":", 3)
-	if len(parts) < 2 { // Need at least plugin:<name>
-		log.Printf("Warning: Invalid plugin source format '%s'. Expected 'plugin:<name>[:<details>]'.\n", source)
+	if len(parts) < 2 {
+		m.logger.Warn("Invalid plugin source format. Expected 'plugin:<name>[:<details>]'.", "source", source)
 		return nil, "", false
 	}
 	pluginName := parts[1]
-	pluginSpecificSource := ""
+	details := ""
 	if len(parts) == 3 {
-		pluginSpecificSource = parts[2]
+		details = parts[2]
 	}
 
-	if loader, ok := m.loaderPlugins[pluginName]; ok {
-		// Optional: Ask the plugin if it *really* supports this specific source details
-		// supported, err := loader.Supports(pluginSpecificSource) // This depends on how plugin.Supports is designed
-		// if err != nil { log.Printf(...); return nil, false }
-		// if supported { return loader, true }
-		log.Printf("Found matching loader plugin '%s' for source '%s'\n", pluginName, source)
-		return loader, pluginSpecificSource, true // Assume plugin handles the details passed to Load
+	loader, found := m.loaderPlugins[pluginName]
+	if found {
+		m.logger.Debug("Found matching loader plugin", "plugin_name", pluginName, "source_details", details)
+		return loader, details, true
 	}
 
+	m.logger.Debug("No loader plugin found matching name", "plugin_name", pluginName)
 	return nil, "", false
 }
 
@@ -259,11 +308,16 @@ func (m *Manager) GetHook(name string) (shared.HookInterface, bool) {
 	defer m.mu.RUnlock()
 
 	if !m.isLoaded {
-		log.Println("Warning: Attempted to get hook plugin before loading finished.")
+		m.logger.Warn("Attempted to get hook plugin before loading finished.")
 		return nil, false
 	}
 
 	hook, ok := m.hookPlugins[name]
+	if ok {
+		m.logger.Debug("Found hook plugin", "hook_name", name)
+	} else {
+		m.logger.Debug("Hook plugin not found", "hook_name", name)
+	}
 	return hook, ok
 }
 
@@ -271,25 +325,11 @@ func (m *Manager) GetHook(name string) (shared.HookInterface, bool) {
 func (m *Manager) Cleanup() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	log.Println("Cleaning up plugins...")
-	plugin.CleanupClients()                     // This kills all managed clients started by plugin.NewClient
-	m.clients = make(map[string]*plugin.Client) // Clear maps
+	m.logger.Info("Cleaning up plugins...")
+	plugin.CleanupClients()
+	m.clients = make(map[string]*plugin.Client)
 	m.loaderPlugins = make(map[string]shared.LoaderInterface)
 	m.hookPlugins = make(map[string]shared.HookInterface)
 	m.isLoaded = false
-	log.Println("Plugin cleanup complete.")
-}
-
-func (m *Manager) GetLoaderPluginByName(name string) (shared.LoaderInterface, bool) {
-	m.mu.RLock() // Use RLock for read-only access
-	defer m.mu.RUnlock()
-
-	if !m.isLoaded {
-		// Depending on desired behavior, you might want to log or wait
-		log.Println("Warning: GetLoaderPluginByName called before plugins are loaded.")
-		// Decide if this should return false or potentially block/error
-	}
-
-	loader, ok := m.loaderPlugins[name] // Access the map holding loaded loader plugins
-	return loader, ok
+	m.logger.Info("Plugin cleanup complete.")
 }

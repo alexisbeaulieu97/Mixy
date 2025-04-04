@@ -9,11 +9,14 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	// No slog needed here unless debugging TUI internals
 )
 
 // ErrUserCancelled is returned when the user quits the TUI prompt.
+// Keep this specific error exported if needed by callers like the resolver.
 var ErrUserCancelled = errors.New("user cancelled input")
 
+// --- Styles remain the same ---
 var (
 	labelStyle    = lipgloss.NewStyle().Padding(0, 1)
 	focusedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("205")) // Magenta
@@ -24,16 +27,16 @@ var (
 
 // Model represents the state of the multi-input prompt.
 type Model struct {
-	prompts         []string          // The variable names to prompt for
-	inputs          []textinput.Model // Input fields
-	currentIndex    int               // Index of the currently focused input
-	collectedValues map[string]string // Values entered by the user
-	quitting        bool              // Flag to indicate the user wants to quit
-	err             error             // Stores errors (e.g., cancellation)
+	prompts         []string
+	inputs          []textinput.Model
+	currentIndex    int
+	collectedValues map[string]string
+	quitting        bool
+	err             error // Store internal errors, including cancellation
 }
 
 // NewPrompter initializes the TUI model.
-func NewPrompter(variablesToPrompt []string) Model {
+func NewPrompter(variablesToPrompt []string) Model { /* ... no change ... */
 	m := Model{
 		prompts:         variablesToPrompt,
 		inputs:          make([]textinput.Model, len(variablesToPrompt)),
@@ -44,12 +47,10 @@ func NewPrompter(variablesToPrompt []string) Model {
 	for i := range m.inputs {
 		t = textinput.New()
 		t.Cursor.Style = focusedStyle
-		t.CharLimit = 256 // Or make configurable
+		t.CharLimit = 256
 
-		// Set placeholder based on variable name
 		t.Placeholder = fmt.Sprintf("Enter value for %s...", variablesToPrompt[i])
 
-		// Set initial focus
 		if i == 0 {
 			t.Focus()
 			t.PromptStyle = focusedStyle
@@ -63,14 +64,12 @@ func NewPrompter(variablesToPrompt []string) Model {
 }
 
 // Init initializes the bubbletea program.
-func (m Model) Init() tea.Cmd {
-	// Start the blinking cursor
+func (m Model) Init() tea.Cmd { /* ... no change ... */
 	return textinput.Blink
 }
 
 // Update handles messages and updates the model.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// If quitting, don't process further messages
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { /* ... no change ... */
 	if m.quitting {
 		return m, tea.Quit
 	}
@@ -79,66 +78,57 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "esc":
-			m.err = ErrUserCancelled
+			m.err = ErrUserCancelled // Set the specific exported error
 			m.quitting = true
 			return m, tea.Quit
 
 		case "tab", "shift+tab", "enter", "up", "down":
 			s := msg.String()
 
-			// Did the user press enter?
 			if s == "enter" {
-				// Store the current value
 				m.collectedValues[m.prompts[m.currentIndex]] = m.inputs[m.currentIndex].Value()
-				// Move to the next input or quit if it's the last one
 				if m.currentIndex == len(m.inputs)-1 {
 					m.quitting = true
 					return m, tea.Quit
 				}
 				m.nextInput()
-				return m, textinput.Blink // Restart blink on the new input
+				return m, textinput.Blink
 			}
 
-			// Cycle through inputs
 			if s == "up" || s == "shift+tab" {
 				m.prevInput()
 			} else {
 				m.nextInput()
 			}
 
-			// Update focus styles and manage cursor blinking
 			cmds := make([]tea.Cmd, len(m.inputs))
 			for i := 0; i <= len(m.inputs)-1; i++ {
 				if i == m.currentIndex {
-					// Set focused state
 					cmds[i] = m.inputs[i].Focus()
 					m.inputs[i].PromptStyle = focusedStyle
 					m.inputs[i].TextStyle = focusedStyle
 					continue
 				}
-				// Remove focused state
 				m.inputs[i].Blur()
 				m.inputs[i].PromptStyle = lipgloss.NewStyle()
 				m.inputs[i].TextStyle = lipgloss.NewStyle()
 			}
-			return m, tea.Batch(cmds...) // Batch commands for focus and blink
+			return m, tea.Batch(cmds...)
 		}
 	}
 
-	// Handle character input and blinking for the focused input
 	cmd := m.updateInputs(msg)
 	return m, cmd
 }
 
 // updateInputs passes messages to the currently focused input field.
-func (m *Model) updateInputs(msg tea.Msg) tea.Cmd {
+func (m *Model) updateInputs(msg tea.Msg) tea.Cmd { /* ... no change ... */
 	cmds := make([]tea.Cmd, len(m.inputs))
 
-	// Only update the focused input
 	for i := range m.inputs {
 		if i == m.currentIndex {
 			m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
-			break // Stop after updating the focused one
+			break
 		}
 	}
 
@@ -146,24 +136,28 @@ func (m *Model) updateInputs(msg tea.Msg) tea.Cmd {
 }
 
 // nextInput moves focus to the next input field.
-func (m *Model) nextInput() {
+func (m *Model) nextInput() { /* ... no change ... */
 	m.currentIndex = (m.currentIndex + 1) % len(m.inputs)
 }
 
 // prevInput moves focus to the previous input field.
-func (m *Model) prevInput() {
+func (m *Model) prevInput() { /* ... no change ... */
 	m.currentIndex--
-	// Wrap around
 	if m.currentIndex < 0 {
 		m.currentIndex = len(m.inputs) - 1
 	}
 }
 
 // View renders the TUI.
-func (m Model) View() string {
+func (m Model) View() string { /* ... no change ... */
 	if m.quitting {
+		// Check the specific error type for cancellation message
+		if errors.Is(m.err, ErrUserCancelled) {
+			return quittingStyle.Render("Input cancelled.\n")
+		}
+		// Handle other potential internal TUI errors if they occur
 		if m.err != nil {
-			return errorStyle.Render(fmt.Sprintf("Input cancelled: %v\n", m.err))
+			return errorStyle.Render(fmt.Sprintf("TUI Error: %v\n", m.err))
 		}
 		return quittingStyle.Render("Input collected. Processing...\n")
 	}
@@ -187,32 +181,29 @@ func (m Model) View() string {
 }
 
 // RunPrompt executes the Bubble Tea program and returns the collected values or an error.
-func RunPrompt(variablesToPrompt []string) (map[string]string, error) {
+func RunPrompt(variablesToPrompt []string) (map[string]string, error) { /* ... no change ... */
 	if len(variablesToPrompt) == 0 {
-		return make(map[string]string), nil // Nothing to prompt for
+		return make(map[string]string), nil
 	}
 
 	initialModel := NewPrompter(variablesToPrompt)
 	p := tea.NewProgram(initialModel)
 
-	// Run returns the final model state
 	finalModel, err := p.Run()
 	if err != nil {
+		// This is an error from bubbletea itself (e.g., terminal setup failed)
 		return nil, fmt.Errorf("failed to run TUI prompt: %w", err)
 	}
 
-	// Cast the final model back to our struct type
 	resultModel, ok := finalModel.(Model)
 	if !ok {
-		// This shouldn't happen if p.Run() succeeds without error
 		return nil, fmt.Errorf("internal error: TUI model has unexpected type %T", finalModel)
 	}
 
-	// Check if the user cancelled within the TUI
+	// Check if the model stored an error (like cancellation)
 	if resultModel.err != nil {
-		return nil, resultModel.err // Propagate ErrUserCancelled
+		return nil, resultModel.err // Propagate internal errors (e.g., ErrUserCancelled)
 	}
 
-	// Return the collected values
 	return resultModel.collectedValues, nil
 }

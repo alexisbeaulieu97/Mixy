@@ -1,13 +1,13 @@
-# variables:
-#   project_name: "MyAwesomeApp"
-#   author_name: "Mixy User"
-#   python_version: "3.10"
+variables:                 # <--- Uncommented
+  project_name: "MyAwesomeApp"  # <--- Uncommented
+  author_name: "Mixy User"      # <--- Uncommented
+  python_version: "3.10"       # <--- Uncommented
 
 templates:
-  - source: ./template-readme # Path to a local directory
-  - source: ./template-python # Path to another local directory
+  - source: ./template-readme
+  - source: ./template-python
 
 mandatory_variables:
-  - project_name # This one has a default
-  - license      # This one doesn't have a default, user MUST provide it
-  - author_name  # This has a default, but we make it mandatory anyway
+  - project_name # Should now be found from defaults
+  - license      # Still missing, will be prompted for
+  - author_name  # Should now be found from defaults

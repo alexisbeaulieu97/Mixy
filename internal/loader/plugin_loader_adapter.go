@@ -2,110 +2,94 @@
 package loader
 
 import (
+	"errors"
 	"fmt"
-	"log"
-	"strings" // Import strings
+	"io/fs"    // Import fs
+	"log/slog" // Use slog
 
-	// Use your actual project paths
+	// Import strings
 	"github.com/alexisbeaulieu97/Mixy/internal/core"
-	"github.com/alexisbeaulieu97/Mixy/internal/plugin"
-	shared "github.com/alexisbeaulieu97/Mixy/pkg/plugin"
+	"github.com/alexisbeaulieu97/Mixy/internal/plugin"   // Host-side manager
+	shared "github.com/alexisbeaulieu97/Mixy/pkg/plugin" // Shared types
 )
 
 // PluginLoaderAdapter uses the PluginManager to load templates via plugins.
 type PluginLoaderAdapter struct {
-	manager *plugin.Manager // Reference to the plugin manager
+	manager *plugin.Manager
+	logger  *slog.Logger
 }
 
 // NewPluginLoaderAdapter creates a new adapter.
-func NewPluginLoaderAdapter(manager *plugin.Manager) core.TemplateLoader {
-	return &PluginLoaderAdapter{manager: manager}
+func NewPluginLoaderAdapter(manager *plugin.Manager, logger *slog.Logger) core.TemplateLoader {
+	return &PluginLoaderAdapter{
+		manager: manager,
+		logger:  logger.With(slog.String("component", "plugin_loader_adapter")),
+	}
 }
 
-// Supports checks if the source uses the "plugin:<name>..." format AND
-// if the corresponding plugin exists in the manager.
+// Supports checks if the PluginManager has a loader that claims the source.
+// Source format expected: "plugin:<name>:<details>"
 func (a *PluginLoaderAdapter) Supports(source string) bool {
-	// Check 1: Does it look like a plugin source string?
-	if !strings.HasPrefix(source, "plugin:") {
-		return false
-	}
-
-	// Check 2: Can we parse a name?
-	parts := strings.SplitN(source, ":", 3)
-	if len(parts) < 2 {
-		log.Printf("PluginLoaderAdapter: Invalid plugin source format '%s'. Skipping.\n", source)
-		return false // Malformed
-	}
-	pluginName := parts[1]
-	if pluginName == "" {
-		log.Printf("PluginLoaderAdapter: Empty plugin name in source '%s'. Skipping.\n", source)
-		return false // Empty name
-	}
-
-	// Check 3: Does the plugin manager have a loader with this name?
-	loaderPlugin, ok := a.manager.GetLoaderPluginByName(pluginName) // Use helper method
-	if !ok || loaderPlugin == nil {
-		// This is expected if a plugin isn't installed, so don't log verbosely unless debugging
-		// log.Printf("PluginLoaderAdapter: No registered plugin loader found for name '%s' in source '%s'.\n", pluginName, source)
-		return false
-	}
-
-	// If all checks pass, this adapter supports this source string.
-	// log.Printf("PluginLoaderAdapter: Supports source '%s' via plugin '%s'.\n", source, pluginName) // Can be verbose
-	return true
+	// The manager's GetLoader now handles the prefix check
+	loader, _, ok := a.manager.GetLoader(source)
+	supported := ok && loader != nil
+	a.logger.Debug("Checking plugin support for source", slog.String("source", source), slog.Bool("supported", supported))
+	return supported
 }
 
 // Load retrieves the plugin instance via the manager and calls its Load method.
 func (a *PluginLoaderAdapter) Load(source string, ctx *core.ProjectContext) (core.Template, error) {
-	// Parse the source string ("plugin:<name>:<plugin-specific-data>")
-	// Supports() should have already validated the basic format.
-	parts := strings.SplitN(source, ":", 3)
-	if len(parts) < 2 { // Should not happen if Supports() worked correctly
-		return nil, fmt.Errorf("internal error: invalid plugin source format '%s' passed to PluginLoaderAdapter.Load", source)
-	}
-	pluginName := parts[1]
-	pluginSpecificSource := ""
-	if len(parts) == 3 {
-		pluginSpecificSource = parts[2]
-	}
+	logger := ctx.Logger.With(slog.String("component", "plugin_loader_adapter"), slog.String("source", source)) // Use ctx logger
+	logger.Debug("Attempting to load template via plugin")
 
-	// Get the specific plugin *instance* from the manager
-	loaderPlugin, ok := a.manager.GetLoaderPluginByName(pluginName)
+	loaderPlugin, pluginSpecificSource, ok := a.manager.GetLoader(source)
 	if !ok || loaderPlugin == nil {
-		// This indicates an internal inconsistency if Supports() passed but the plugin disappeared
-		return nil, fmt.Errorf("internal error: plugin loader '%s' not found by manager in Load (source: %s)", pluginName, source)
+		err := errors.New("no suitable plugin loader found")
+		logger.Error("Plugin loader not found or manager not ready", slog.Any("error", err))
+		return nil, core.NewPluginError("no suitable plugin loader found", err, slog.String("source", source))
 	}
 
-	// Get metadata for logging (best effort)
-	meta, errMeta := loaderPlugin.GetMetadata()
-	pluginLogName := pluginName // Fallback to registered name
-	if errMeta == nil {
-		pluginLogName = meta.Name // Prefer plugin's self-reported name
+	// Get metadata for logging purposes
+	meta, metaErr := loaderPlugin.GetMetadata()
+	if metaErr != nil {
+		// Log warning but proceed if possible, using a placeholder name
+		logger.Warn("Failed to get metadata from plugin", slog.Any("error", metaErr))
+		meta.Name = "[unknown plugin]"
 	}
-	log.Printf("PluginLoaderAdapter: Using loader plugin '%s' for source '%s' (plugin-specific part: '%s')\n", pluginLogName, source, pluginSpecificSource)
+	pluginLogger := logger.With(slog.String("plugin_name", meta.Name), slog.String("plugin_version", meta.PluginVersion), slog.String("plugin_api_version", meta.APIVersion))
+	pluginLogger.Info("Using plugin loader")
 
-	// Prepare context for the plugin
+	// Prepare context for the plugin (simple version)
 	pluginCtx := shared.LoaderPluginContext{
 		Variables: ctx.Variables,
+		// Add other necessary fields here if the shared context evolves
 	}
+	pluginLogger.Debug("Calling plugin Load method", slog.String("plugin_specific_source", pluginSpecificSource), slog.Any("context_variables", pluginCtx.Variables))
 
-	// Call the actual plugin's Load method via RPC
+	// Call the plugin's Load method
 	pluginData, err := loaderPlugin.Load(pluginSpecificSource, pluginCtx)
 	if err != nil {
-		// Report error using the plugin's name and the data *it* received
-		return nil, fmt.Errorf("plugin '%s' failed to load source '%s': %w", pluginLogName, pluginSpecificSource, err)
+		pluginLogger.Error("Plugin failed to load source", slog.Any("error", err))
+		// Wrap error with plugin context
+		return nil, core.NewPluginError(fmt.Sprintf("plugin '%s' failed to load source", meta.Name), err, slog.String("plugin_name", meta.Name), slog.String("plugin_source_details", pluginSpecificSource))
 	}
+	pluginLogger.Info("Plugin loaded source data successfully", slog.Int("file_count", len(pluginData)))
 
-	// Adapt the returned data
+	// Adapt the plugin's returned data to core.TemplateData
 	coreData := make([]core.TemplateData, len(pluginData))
 	for i, pd := range pluginData {
-		coreData[i] = core.NewInMemoryTemplateData(pd.Path, pd.Content)
+		fileLogger := pluginLogger.With(slog.String("relative_path", pd.Path))
+		fileLogger.Debug("Adapting plugin data to core data", slog.Int("content_size", len(pd.Content)), slog.Uint64("mode", uint64(pd.Mode)))
+		// Convert mode back from uint32
+		mode := fs.FileMode(pd.Mode)
+		coreData[i] = core.NewInMemoryTemplateData(pd.Path, pd.Content, mode)
 	}
 
-	// Return a core.Template representing the loaded data
+	// Wrap the result in a core.Template compatible structure
 	return &LoadedPluginTemplate{
-		SourceName: source, // Use the original full source string as the identifier
+		SourceName: source, // The original source string (e.g., "plugin:name:details")
 		LoadedData: coreData,
+		Logger:     logger,
 	}, nil
 }
 
@@ -113,6 +97,7 @@ func (a *PluginLoaderAdapter) Load(source string, ctx *core.ProjectContext) (cor
 type LoadedPluginTemplate struct {
 	SourceName string
 	LoadedData []core.TemplateData
+	Logger     *slog.Logger
 }
 
 func (lpt *LoadedPluginTemplate) Source() string {
@@ -121,21 +106,6 @@ func (lpt *LoadedPluginTemplate) Source() string {
 
 // Load just returns the data already loaded by the plugin adapter.
 func (lpt *LoadedPluginTemplate) Load(ctx *core.ProjectContext) ([]core.TemplateData, error) {
-	// Note: Variables are typically applied during rendering, not here.
-	// If plugins *can* pre-render, the interface might need adjustment.
+	lpt.Logger.Debug("Providing pre-loaded data from plugin", slog.String("source", lpt.SourceName), slog.Int("file_count", len(lpt.LoadedData)))
 	return lpt.LoadedData, nil
 }
-
-// --- Ensure you have this method in PluginManager ---
-// Add the following GetLoaderPluginByName method to internal/plugin/manager.go if it doesn't exist:
-
-/* Add to internal/plugin/manager.go:
-// GetLoaderPluginByName retrieves a loaded loader plugin interface by its registered name.
-func (m *Manager) GetLoaderPluginByName(name string) (shared.LoaderInterface, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	// Optional: Check m.isLoaded if strict ordering is needed
-	loader, ok := m.loaderPlugins[name]
-	return loader, ok
-}
-*/

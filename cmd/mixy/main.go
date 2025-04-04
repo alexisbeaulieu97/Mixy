@@ -1,3 +1,4 @@
+// cmd/mixy/main.go
 package main
 
 import (
@@ -5,21 +6,25 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/alexisbeaulieu97/Mixy/cmd/mixy/commands" // Adjust path
-	"github.com/alexisbeaulieu97/Mixy/internal/tui"
+	"github.com/alexisbeaulieu97/Mixy/cmd/mixy/commands"
+	"github.com/alexisbeaulieu97/Mixy/internal/core" // Need core for ErrCancelled check
 )
 
 func main() {
+	// commands.Execute() handles cobra errors internally now using RunE
 	err := commands.Execute()
 	if err != nil {
-		// Check if the error is specifically user cancellation from the TUI
-		if errors.Is(err, tui.ErrUserCancelled) {
-			// Exit quietly without printing the full error stack for cancellation
-			os.Exit(1) // Or os.Exit(0) if cancellation isn't considered an error state
+		// Check if it was cancellation, which might have already printed a message
+		if errors.Is(err, core.ErrCancelled) {
+			// Potentially exit with a different code for cancellation?
+			os.Exit(1) // Exit non-zero for cancellation
 		} else {
-			// Print other errors normally
+			// Print the user-facing error returned by RunE
+			// Logging should have happened within the command execution
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	}
+	// Successful execution
+	os.Exit(0)
 }

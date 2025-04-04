@@ -2,14 +2,15 @@
 package variables
 
 import (
+	"errors" // Import errors
 	"fmt"
-	"log" // Or use hclog
+	"log/slog"
 
-	"github.com/alexisbeaulieu97/Mixy/internal/core"
-	"github.com/alexisbeaulieu97/Mixy/internal/tui" // Import the TUI package
+	"github.com/alexisbeaulieu97/Mixy/internal/core" // Use specific path
+	"github.com/alexisbeaulieu97/Mixy/internal/tui"
 )
 
-// BasicResolver implements a simple variable resolution strategy including TUI prompt.
+// BasicResolver implements variable resolution including TUI prompt.
 type BasicResolver struct{}
 
 // NewBasicResolver creates a new BasicResolver.
@@ -21,58 +22,80 @@ func NewBasicResolver() core.VariableResolver {
 func (r *BasicResolver) Resolve(
 	configDefaults map[string]interface{},
 	flagOverrides map[string]string,
-	mandatoryKeys []string, // Receive mandatory keys
+	mandatoryKeys []string,
+	ctx *core.ProjectContext,
 ) (map[string]interface{}, error) {
+	logger := ctx.Logger.With(slog.String("component", "variable_resolver"))
+	finalVars := make(map[string]interface{}) // Create NEW map
 
-	finalVars := make(map[string]interface{})
-
-	// 1. Apply defaults from config
+	// --- Stage 1: Defaults ---
+	logger.Debug("--- Resolving Stage 1: Applying Defaults ---", slog.Any("defaults_received", configDefaults))
 	for key, value := range configDefaults {
 		finalVars[key] = value
 	}
+	logger.Debug("Variables after defaults applied", slog.Any("current_vars", finalVars))
 
-	// 2. Apply overrides from flags
-	for key, value := range flagOverrides {
-		log.Printf("Overriding variable '%s' with value '%s' from flag\n", key, value)
-		finalVars[key] = value // Direct overwrite (as string)
+	// --- Stage 2: Flags ---
+	logger.Debug("--- Resolving Stage 2: Applying Flags ---", slog.Any("flags_received", flagOverrides))
+	if len(flagOverrides) > 0 {
+		for key, value := range flagOverrides {
+			logger.Info("Overriding variable from flag", slog.String("key", key), slog.String("value", value))
+			finalVars[key] = value
+		}
 	}
+	logger.Debug("Variables after flags applied", slog.Any("current_vars", finalVars))
 
-	// 3. Check for missing mandatory variables
+	// --- Stage 3: Check Mandatory ---
+	logger.Debug("--- Resolving Stage 3: Checking Mandatory ---", slog.Any("mandatory_keys", mandatoryKeys))
 	missingMandatoryVars := []string{}
 	if len(mandatoryKeys) > 0 {
-		log.Println("Checking mandatory variables...") // Debug log
 		for _, key := range mandatoryKeys {
-			log.Printf("  Checking: %s\n", key) // Debug log
-			if _, exists := finalVars[key]; !exists {
-				log.Printf("    Mandatory variable '%s' is missing.\n", key) // Debug log
+			val, exists := finalVars[key] // Check existence IN THE CURRENT finalVars map
+			if !exists {
+				logger.Warn("Mandatory variable MISSING from current map", slog.String("key", key))
 				missingMandatoryVars = append(missingMandatoryVars, key)
 			} else {
-				log.Printf("    Mandatory variable '%s' is present: %v\n", key, finalVars[key]) // Debug log
+				// Log that it was found *at this stage*
+				logger.Debug("Mandatory variable FOUND in current map", slog.String("key", key), slog.Any("value", val))
 			}
 		}
 	} else {
-		log.Println("No mandatory variables defined in config.") // Debug log
+		logger.Debug("No mandatory variables defined.")
 	}
+	logger.Debug("List of missing mandatory variables", slog.Any("missing_list", missingMandatoryVars))
 
-	// 4. If mandatory variables are missing, launch TUI prompt
+	// --- Stage 4: TUI Prompt ---
+	logger.Debug("--- Resolving Stage 4: Prompting TUI if needed ---")
 	if len(missingMandatoryVars) > 0 {
-		fmt.Printf("Mandatory variables missing: %v. Launching interactive prompt...\n", missingMandatoryVars)
+		logger.Info("Mandatory variables missing, launching interactive prompt", slog.Any("missing", missingMandatoryVars))
+		fmt.Printf("Mandatory variables missing: %v. Please provide values:\n", missingMandatoryVars) // User message
 
-		// Call the TUI runner function
 		providedValues, err := tui.RunPrompt(missingMandatoryVars)
 		if err != nil {
-			// Handle errors, including user cancellation (tui.ErrUserCancelled)
-			return nil, fmt.Errorf("failed during interactive prompt: %w", err)
+			if errors.Is(err, tui.ErrUserCancelled) {
+				logger.Warn("User cancelled interactive prompt")
+				return nil, core.ErrCancelled
+			}
+			logger.Error("Interactive prompt failed", slog.Any("error", err))
+			return nil, core.NewError(core.ErrorTypeVariable, "interactive prompt failed", err)
 		}
+		logger.Debug("Raw values received from TUI", slog.Any("provided_map", providedValues))
 
-		// Merge the values provided by the user
-		log.Printf("Merging values from TUI: %v\n", providedValues) // Debug log
+		// --- Stage 5: Merge TUI ---
+		logger.Debug("--- Resolving Stage 5: Merging TUI values ---")
 		for key, value := range providedValues {
-			finalVars[key] = value // Add user-provided values (as string)
+			// Only add/overwrite if the TUI actually returned a value for the key
+			// (RunPrompt should only return keys that were displayed and entered)
+			logger.Debug("Applying TUI value", slog.String("key", key), slog.String("value", value))
+			finalVars[key] = value
 		}
-		fmt.Println("Interactive input collected.")
+		logger.Info("Interactive input collected and merged.")
+	} else {
+		logger.Debug("No TUI prompt needed.")
 	}
 
-	log.Printf("Final resolved variables: %v\n", finalVars) // Debug log
+	logger.Debug("--- Resolution Complete ---")
+	logger.Info("Variable resolution complete.")
+	logger.Debug("Final resolved variables being returned", slog.Any("variables", finalVars))
 	return finalVars, nil
 }

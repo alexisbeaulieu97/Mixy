@@ -1,7 +1,8 @@
+// internal/merger/overwrite_merger.go
 package merger
 
 import (
-	"fmt"
+	"log/slog" // Use slog
 
 	"github.com/alexisbeaulieu97/Mixy/internal/core"
 )
@@ -16,19 +17,23 @@ func NewOverwriteMerger() core.TemplateMerger {
 
 // Merge combines templates, overwriting files with the same path from later templates.
 func (m *OverwriteMerger) Merge(templates [][]core.TemplateData, ctx *core.ProjectContext) ([]core.TemplateData, error) {
+	logger := ctx.Logger.With(slog.String("component", "overwrite_merger"))
+	logger.Info("Starting template merge process", slog.Int("template_source_count", len(templates)))
 	finalFiles := make(map[string]core.TemplateData) // Use map for easy overwriting by path
 
 	for i, templateFiles := range templates {
-		fmt.Printf("  Merging files from template source %d\n", i+1) // Debugging
+		sourceLogger := logger.With(slog.Int("source_index", i))
+		sourceLogger.Debug("Merging files from template source")
 		for _, fileData := range templateFiles {
 			filePath := fileData.Path()
+			fileLogger := sourceLogger.With(slog.String("relative_path", filePath))
 			if existing, ok := finalFiles[filePath]; ok {
-				fmt.Printf("    Conflict: Overwriting '%s' from previous template source.\n", filePath) // Debugging
-				_ = existing                                                                            // Keep compiler happy if not used further
+				fileLogger.Warn("File conflict: Overwriting file from previous source.", slog.Any("existing_mode", existing.Mode()), slog.Any("new_mode", fileData.Mode()))
+				// Add more details if needed, like which source index it came from previously
 			} else {
-				fmt.Printf("    Adding new file '%s'.\n", filePath) // Debugging
+				fileLogger.Debug("Adding new file.")
 			}
-			finalFiles[filePath] = fileData
+			finalFiles[filePath] = fileData // Overwrite or add
 		}
 	}
 
@@ -38,5 +43,6 @@ func (m *OverwriteMerger) Merge(templates [][]core.TemplateData, ctx *core.Proje
 		result = append(result, data)
 	}
 
+	logger.Info("Template merging complete", slog.Int("final_file_count", len(result)))
 	return result, nil
 }
