@@ -1,0 +1,10 @@
+# variables:
+#   project_name: "MyAwesomeApp"
+#   author_name: "Mixy User"
+#   python_version: "3.10"
+
+templates:
+  - source: ./template-readme # Path to a local directory
+  - source: ./template-python # Path to another local directory
+
+# output: ./my-output-dir # Optional default output dir
