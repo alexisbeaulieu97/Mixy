@@ -137,7 +137,7 @@ var createCmd = &cobra.Command{
 				fmt.Fprintln(os.Stderr, "Operation cancelled.")
 				return err
 			}
-			return fmt.Errorf(err.Error())
+			return fmt.Errorf("%s", err.Error())
 		}
 
 		logger.Info("Project created successfully!")
