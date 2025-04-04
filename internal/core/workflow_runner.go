@@ -8,123 +8,163 @@ import (
 	"os"
 )
 
-// WorkflowRunner orchestrates the execution of workflow steps, potentially wrapped by middleware.
+// Package core provides core workflow execution functionality.
+
+// WorkflowRunner orchestrates the execution of workflow steps with middleware support.
+// It ensures proper cleanup of temporary resources and provides detailed logging of the execution process.
 type WorkflowRunner struct {
 	steps      []WorkflowStep
-	middleware []WorkflowMiddleware // Added middleware slice
+	middleware []WorkflowMiddleware
 	logger     *slog.Logger
 }
 
-// NewWorkflowRunner creates a runner with the specified steps and middleware.
-// Middleware is executed in the order provided (onion-layer style).
+// NewWorkflowRunner creates a new workflow runner instance.
+// It requires at least one step and a logger to be provided.
+//
+// Parameters:
+//   - steps: The ordered sequence of workflow steps to execute
+//   - middleware: Optional middleware to wrap step execution (can be nil)
+//   - logger: Required logger for execution tracking
+//
+// Returns:
+//   - *WorkflowRunner: Configured workflow runner instance
+//
+// Panics if steps is empty or logger is nil as these are required for proper operation.
 func NewWorkflowRunner(steps []WorkflowStep, middleware []WorkflowMiddleware, logger *slog.Logger) *WorkflowRunner {
 	if len(steps) == 0 {
-		panic("WorkflowRunner requires at least one step")
+		panic("workflow runner requires at least one step")
 	}
 	if logger == nil {
-		panic("WorkflowRunner requires a non-nil logger")
+		panic("workflow runner requires a non-nil logger")
 	}
-	// Reverse middleware order for easier application in Run loop (innermost first)
-	// Or apply in provided order - let's apply as provided for clarity.
-	mw := make([]WorkflowMiddleware, len(middleware))
-	copy(mw, middleware) // Make a copy
+
+	// Create a defensive copy of middleware slice
+	var mw []WorkflowMiddleware
+	if middleware != nil {
+		mw = make([]WorkflowMiddleware, len(middleware))
+		copy(mw, middleware)
+	}
 
 	return &WorkflowRunner{
 		steps:      steps,
-		middleware: mw, // Store middleware
+		middleware: mw,
 		logger:     logger.With(slog.String("component", "workflow_runner")),
 	}
 }
 
+// cleanupTempDir handles the cleanup of temporary directories, with proper logging.
+func (r *WorkflowRunner) cleanupTempDir(ctx *ProjectContext, workflowErr error) {
+	if ctx.TempOutputDirectory == "" {
+		return
+	}
+
+	logger := r.logger.With(slog.String("temp_dir", ctx.TempOutputDirectory))
+
+	// Only clean up on error to preserve output for debugging
+	if workflowErr != nil {
+		logger.Warn("Workflow failed, cleaning up temporary directory",
+			slog.Any("triggering_error", workflowErr))
+
+		if removeErr := os.RemoveAll(ctx.TempOutputDirectory); removeErr != nil {
+			logger.Error("Failed to cleanup temporary directory",
+				slog.Any("cleanup_error", removeErr))
+		} else {
+			logger.Info("Temporary directory cleaned up successfully")
+		}
+		return
+	}
+
+	// Warn about lingering temp directories
+	logger.Warn("Workflow succeeded but temporary directory path was still set (potential leak)")
+}
+
 // Run executes the workflow steps sequentially, applying middleware to each step.
+// It ensures proper initialization of the context and handles cleanup of temporary resources.
+//
+// Parameters:
+//   - initialCtx: The initial project context for the workflow
+//
+// Returns:
+//   - error: nil if successful, otherwise the error that caused the workflow to fail
 func (r *WorkflowRunner) Run(initialCtx ProjectContext) (err error) {
 	r.logger.Info("Starting workflow execution",
 		slog.Int("total_steps", len(r.steps)),
 		slog.Int("middleware_count", len(r.middleware)))
 
+	// Ensure context has a logger
 	if initialCtx.Logger == nil {
-		initialCtx.Logger = r.logger
+		initialCtx.Logger = r.logger.With(slog.String("context", "workflow"))
 	}
 	ctx := &initialCtx
 
-	// Defer cleanup (remains the same)
+	// Register cleanup handler
 	defer func() {
-		if ctx.TempOutputDirectory != "" {
-			if err != nil {
-				r.logger.Warn("Workflow failed, cleaning up temporary directory",
-					slog.String("temp_dir", ctx.TempOutputDirectory),
-					slog.Any("triggering_error", err))
-				if removeErr := os.RemoveAll(ctx.TempOutputDirectory); removeErr != nil {
-					r.logger.Error("Failed to cleanup temporary directory",
-						slog.String("temp_dir", ctx.TempOutputDirectory),
-						slog.Any("cleanup_error", removeErr))
-				} else {
-					r.logger.Info("Temporary directory cleaned up successfully.", slog.String("temp_dir", ctx.TempOutputDirectory))
-				}
-			} else {
-				r.logger.Warn("Workflow succeeded but temporary directory path was still set. Cleanup skipped.", slog.String("temp_dir", ctx.TempOutputDirectory))
-			}
+		r.cleanupTempDir(ctx, err)
+	}()
+
+	// Handle panics
+	defer func() {
+		if panicVal := recover(); panicVal != nil {
+			err = fmt.Errorf("workflow panic: %v", panicVal)
+			r.logger.Error("Workflow execution panic",
+				slog.Any("panic_value", panicVal))
 		}
 	}()
 
-	// --- Execute Steps with Middleware ---
+	// Execute each step in sequence
 	for i, step := range r.steps {
-		stepLogger := r.logger.With(slog.Int("step_index", i+1), slog.String("step_name", step.Name()))
+		stepLogger := r.logger.With(
+			slog.Int("step_index", i+1),
+			slog.String("step_name", step.Name()))
 
-		// Define the final action: executing the actual step
+		// Create the base handler that executes the step
 		finalHandler := func(execCtx *ProjectContext) error {
-			stepLogger.Info("Executing step action") // Log before actual execution
-			stepErr := step.Execute(execCtx)
-			if stepErr != nil {
-				stepLogger.Error("Step action failed", slog.Any("error", stepErr))
-			} else {
-				stepLogger.Info("Step action completed successfully")
+			stepLogger.Info("Executing step action")
+			if err := step.Execute(execCtx); err != nil {
+				stepLogger.Error("Step action failed",
+					slog.Any("error", err))
+				return fmt.Errorf("step %s failed: %w", step.Name(), err)
 			}
-			return stepErr
+			stepLogger.Info("Step action completed successfully")
+			return nil
 		}
 
-		// Build the middleware chain for this step, wrapping the finalHandler
+		// Build the middleware chain
 		chainedHandler := finalHandler
-		// Iterate middleware in reverse to build the onion layers correctly
-		// (last middleware in list calls the next-to-last, etc.)
 		for j := len(r.middleware) - 1; j >= 0; j-- {
-			// Capture loop variables correctly for the closure
 			currentMiddleware := r.middleware[j]
-			nextHandler := chainedHandler // The handler the current middleware will call
+			nextHandler := chainedHandler
 
 			chainedHandler = func(execCtx *ProjectContext) error {
-				middlewareLogger := stepLogger.With(slog.String("middleware", fmt.Sprintf("%T", currentMiddleware)))
+				middlewareLogger := stepLogger.With(
+					slog.String("middleware", fmt.Sprintf("%T", currentMiddleware)))
+
 				middlewareLogger.Debug("Entering middleware")
-				// Execute the current middleware, passing the context, the step being executed,
-				// and the *next* handler in the chain (which might be another middleware or the final step execution)
-				mwErr := currentMiddleware.Execute(execCtx, step, nextHandler)
-				if mwErr != nil {
-					middlewareLogger.Debug("Middleware finished with error", slog.Any("error", mwErr))
-				} else {
-					middlewareLogger.Debug("Middleware finished successfully")
+				if err := currentMiddleware.Execute(execCtx, step, nextHandler); err != nil {
+					middlewareLogger.Error("Middleware failed",
+						slog.Any("error", err))
+					return fmt.Errorf("middleware failed for step %s: %w", step.Name(), err)
 				}
-				return mwErr // Return error from middleware execution
+				middlewareLogger.Debug("Middleware completed successfully")
+				return nil
 			}
 		}
 
-		// Execute the fully chained handler (starts with the outermost middleware)
+		// Execute the step with its middleware chain
 		stepLogger.Info("Starting step execution (via middleware chain)")
-		err = chainedHandler(ctx) // Assign result to the named return variable
-
-		// Handle error from the entire chain (middleware or step)
-		if err != nil {
-			// Logging of specific middleware/step failure happens within the chain/final handler
+		if err = chainedHandler(ctx); err != nil {
 			if errors.Is(err, ErrCancelled) {
-				r.logger.Warn("Workflow execution cancelled by user during step", slog.String("step_name", step.Name()))
-			} else {
-				r.logger.Error("Workflow execution failed", slog.String("failed_step", step.Name()))
+				r.logger.Warn("Workflow execution cancelled by user",
+					slog.String("step", step.Name()))
+				return fmt.Errorf("workflow cancelled: %w", err)
 			}
-			return err // Stop workflow and trigger deferred cleanup
+			r.logger.Error("Workflow execution failed",
+				slog.String("step", step.Name()))
+			return fmt.Errorf("workflow failed at step %s: %w", step.Name(), err)
 		}
-		stepLogger.Info("Step execution completed successfully (including middleware)")
-
-	} // End step loop
+		stepLogger.Info("Step execution completed successfully")
+	}
 
 	r.logger.Info("Workflow execution completed successfully")
-	return nil // Explicitly return nil on success
+	return nil
 }

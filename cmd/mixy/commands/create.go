@@ -10,7 +10,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	// Use correct module paths
 	"github.com/alexisbeaulieu97/Mixy/internal/config"
 	"github.com/alexisbeaulieu97/Mixy/internal/core"
 	"github.com/alexisbeaulieu97/Mixy/internal/io"
@@ -30,6 +29,9 @@ var (
 	logFormat     string
 )
 
+// createCmd implements the 'create' subcommand which handles project generation from templates.
+// It coordinates the loading of configuration, template processing, and output generation
+// through a series of workflow steps with middleware support.
 var createCmd = &cobra.Command{
 	Use:   "create <config_file>",
 	Short: "Create a new project from templates defined in a config file.",
@@ -38,8 +40,6 @@ var createCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		configFile := args[0]
 
-		// --- Logger Setup ---
-		// ... (remains the same) ...
 		var level slog.Level
 		switch strings.ToLower(logLevel) {
 		case "debug":
@@ -54,6 +54,7 @@ var createCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Warning: Invalid log level '%s', defaulting to 'info'\n", logLevel)
 			level = slog.LevelInfo
 		}
+
 		var logger *slog.Logger
 		opts := &slog.HandlerOptions{Level: level}
 		if strings.ToLower(logFormat) == "json" {
@@ -64,9 +65,6 @@ var createCmd = &cobra.Command{
 		logger = logger.With(slog.String("service", "mixy"))
 		logger.Info("Initializing Mixy create command", slog.String("log_level", level.String()))
 
-		// --- Dependency Instantiation ---
-		// ... (remains the same) ...
-		logger.Debug("Instantiating dependencies")
 		pluginManager := plugin.NewManager("", logger)
 		defer pluginManager.Cleanup()
 		logger.Debug("Loading plugins")
@@ -75,6 +73,7 @@ var createCmd = &cobra.Command{
 			logger.Error("Failed to load plugins", slog.Any("error", pluginLoadErr))
 			return pluginLoadErr
 		}
+
 		cfgSource := config.NewViperSource()
 		varResolver := variables.NewBasicResolver()
 		pluginLoaderAdapter := loader.NewPluginLoaderAdapter(pluginManager, logger)
@@ -87,12 +86,15 @@ var createCmd = &cobra.Command{
 		templateMerger := merger.NewOverwriteMerger()
 		outputWriter := io.NewDiskWriter()
 
-		// --- Define Workflow Steps ---
-		// ... (remains the same) ...
 		logger.Debug("Defining workflow steps")
 		workflowSteps := []core.WorkflowStep{
 			&steps.LoadConfigStep{ConfigSource: cfgSource},
-			&steps.ResolveOutputDirStep{},
+			steps.NewResolveOutputDirStep(steps.OutputDirOptions{
+				CreateIfMissing:     true,
+				AllowParentCreation: true,
+				RequireEmpty:        true,
+				DefaultDir:          ".",
+			}),
 			&steps.ResolveVariablesStep{Resolver: varResolver},
 			&steps.CreateTempDirStep{},
 			&steps.ProcessTemplatesStep{Resolver: loaderResolver, Renderer: templateRenderer},
@@ -102,20 +104,15 @@ var createCmd = &cobra.Command{
 			&steps.FinalizeOutputStep{},
 		}
 
-		// --- Define Workflow Middleware (Empty for now) ---
-		logger.Debug("Defining workflow middleware")
+		logger.Debug("Setting up workflow middleware")
 		middleware := []core.WorkflowMiddleware{
 			// Add concrete middleware instances here later, e.g.:
 			// &middleware.LoggingMiddleware{},
 			// &middleware.ErrorWrapperMiddleware{},
 		}
 
-		// --- Create Workflow Runner ---
-		// Pass the middleware slice to the runner
 		runner := core.NewWorkflowRunner(workflowSteps, middleware, logger)
 
-		// --- Prepare Initial Context ---
-		// ... (remains the same) ...
 		initialCtx := core.ProjectContext{
 			ConfigFilePath:  configFile,
 			OutputDirectory: outputDir,
@@ -129,24 +126,22 @@ var createCmd = &cobra.Command{
 			slog.Any("variable_flags", variableFlags),
 		)
 
-		// --- Execute Workflow ---
-		// ... (remains the same) ...
 		err := runner.Run(initialCtx)
 		if err != nil {
 			if errors.Is(err, core.ErrCancelled) {
 				fmt.Fprintln(os.Stderr, "Operation cancelled.")
 				return err
 			}
-			return fmt.Errorf("%s", err.Error())
+			return fmt.Errorf("project creation failed: %w", err)
 		}
 
 		logger.Info("Project created successfully!")
-		fmt.Println("\nProject created successfully!")
+		fmt.Printf("\nProject created successfully in %s!\n", outputDir)
 		return nil
 	},
 }
 
-func init() { // ... (remains the same) ...
+func init() {
 	rootCmd.AddCommand(createCmd)
 	createCmd.Flags().StringVarP(&outputDir, "output", "o", "", "Output directory for the generated project")
 	createCmd.Flags().StringToStringVarP(&variableFlags, "var", "v", nil, "Override template variables (key=value)")

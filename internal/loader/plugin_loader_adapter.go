@@ -4,13 +4,12 @@ package loader
 import (
 	"errors"
 	"fmt"
-	"io/fs"    // Import fs
-	"log/slog" // Use slog
+	"io/fs"
+	"log/slog"
 
-	// Import strings
 	"github.com/alexisbeaulieu97/Mixy/internal/core"
-	"github.com/alexisbeaulieu97/Mixy/internal/plugin"   // Host-side manager
-	shared "github.com/alexisbeaulieu97/Mixy/pkg/plugin" // Shared types
+	"github.com/alexisbeaulieu97/Mixy/internal/plugin"
+	shared "github.com/alexisbeaulieu97/Mixy/pkg/plugin"
 )
 
 // PluginLoaderAdapter uses the PluginManager to load templates via plugins.
@@ -30,7 +29,6 @@ func NewPluginLoaderAdapter(manager *plugin.Manager, logger *slog.Logger) core.T
 // Supports checks if the PluginManager has a loader that claims the source.
 // Source format expected: "plugin:<name>:<details>"
 func (a *PluginLoaderAdapter) Supports(source string) bool {
-	// The manager's GetLoader now handles the prefix check
 	loader, _, ok := a.manager.GetLoader(source)
 	supported := ok && loader != nil
 	a.logger.Debug("Checking plugin support for source", slog.String("source", source), slog.Bool("supported", supported))
@@ -39,7 +37,7 @@ func (a *PluginLoaderAdapter) Supports(source string) bool {
 
 // Load retrieves the plugin instance via the manager and calls its Load method.
 func (a *PluginLoaderAdapter) Load(source string, ctx *core.ProjectContext) (core.Template, error) {
-	logger := ctx.Logger.With(slog.String("component", "plugin_loader_adapter"), slog.String("source", source)) // Use ctx logger
+	logger := ctx.Logger.With(slog.String("component", "plugin_loader_adapter"), slog.String("source", source))
 	logger.Debug("Attempting to load template via plugin")
 
 	loaderPlugin, pluginSpecificSource, ok := a.manager.GetLoader(source)
@@ -49,45 +47,36 @@ func (a *PluginLoaderAdapter) Load(source string, ctx *core.ProjectContext) (cor
 		return nil, core.NewPluginError("no suitable plugin loader found", err, slog.String("source", source))
 	}
 
-	// Get metadata for logging purposes
 	meta, metaErr := loaderPlugin.GetMetadata()
 	if metaErr != nil {
-		// Log warning but proceed if possible, using a placeholder name
 		logger.Warn("Failed to get metadata from plugin", slog.Any("error", metaErr))
 		meta.Name = "[unknown plugin]"
 	}
 	pluginLogger := logger.With(slog.String("plugin_name", meta.Name), slog.String("plugin_version", meta.PluginVersion), slog.String("plugin_api_version", meta.APIVersion))
 	pluginLogger.Info("Using plugin loader")
 
-	// Prepare context for the plugin (simple version)
 	pluginCtx := shared.LoaderPluginContext{
 		Variables: ctx.Variables,
-		// Add other necessary fields here if the shared context evolves
 	}
 	pluginLogger.Debug("Calling plugin Load method", slog.String("plugin_specific_source", pluginSpecificSource), slog.Any("context_variables", pluginCtx.Variables))
 
-	// Call the plugin's Load method
 	pluginData, err := loaderPlugin.Load(pluginSpecificSource, pluginCtx)
 	if err != nil {
 		pluginLogger.Error("Plugin failed to load source", slog.Any("error", err))
-		// Wrap error with plugin context
 		return nil, core.NewPluginError(fmt.Sprintf("plugin '%s' failed to load source", meta.Name), err, slog.String("plugin_name", meta.Name), slog.String("plugin_source_details", pluginSpecificSource))
 	}
 	pluginLogger.Info("Plugin loaded source data successfully", slog.Int("file_count", len(pluginData)))
 
-	// Adapt the plugin's returned data to core.TemplateData
 	coreData := make([]core.TemplateData, len(pluginData))
 	for i, pd := range pluginData {
 		fileLogger := pluginLogger.With(slog.String("relative_path", pd.Path))
 		fileLogger.Debug("Adapting plugin data to core data", slog.Int("content_size", len(pd.Content)), slog.Uint64("mode", uint64(pd.Mode)))
-		// Convert mode back from uint32
 		mode := fs.FileMode(pd.Mode)
 		coreData[i] = core.NewInMemoryTemplateData(pd.Path, pd.Content, mode)
 	}
 
-	// Wrap the result in a core.Template compatible structure
 	return &LoadedPluginTemplate{
-		SourceName: source, // The original source string (e.g., "plugin:name:details")
+		SourceName: source,
 		LoadedData: coreData,
 		Logger:     logger,
 	}, nil
