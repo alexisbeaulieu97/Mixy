@@ -2,12 +2,14 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"path/filepath"
 	"strings"
 
 	"github.com/alexisbeaulieu97/Mixy/internal/plugin"
+	"github.com/alexisbeaulieu97/Mixy/internal/tui"
 	pkg_plugin "github.com/alexisbeaulieu97/Mixy/pkg/plugin"
 )
 
@@ -64,11 +66,18 @@ func (w *Workflow) Run(initialCtx ProjectContext, flagVariables map[string]strin
 	}
 	initialCtx.OutputDirectory = absOutputDir
 
-	resolvedVars, err := w.variableResolver.Resolve(cfg.Variables, flagVariables)
+	resolvedVars, err := w.variableResolver.Resolve(cfg.Variables, flagVariables, cfg.MandatoryVariables) // Pass mandatory keys
 	if err != nil {
+		// Check if the error is user cancellation to provide a cleaner exit message
+		if errors.Is(err, tui.ErrUserCancelled) { // Assuming tui.ErrUserCancelled is accessible or redefine it in core/errors
+			fmt.Println("Operation cancelled by user during variable input.")
+			// Return a distinct error or nil depending on desired CLI behavior on cancel
+			// Returning the specific error allows the caller (main) to potentially exit quietly.
+			return err
+		}
 		return fmt.Errorf("failed to resolve variables: %w", err)
 	}
-	initialCtx.Variables = resolvedVars
+	initialCtx.Variables = resolvedVars // Update context with final variables
 
 	// 4. Process Templates (Load -> Render)
 	allProcessedTemplates := make([][]TemplateData, 0, len(cfg.Templates))

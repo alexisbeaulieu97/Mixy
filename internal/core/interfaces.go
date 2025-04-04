@@ -50,8 +50,13 @@ type OutputWriter interface {
 
 // VariableResolver determines the final set of variables.
 type VariableResolver interface {
-	Resolve(configDefaults map[string]interface{}, flagOverrides map[string]string) (map[string]interface{}, error)
-	// Potentially add interactive TUI prompting later
+	// Resolve merges defaults, overrides, and prompts for missing mandatory variables.
+	// Takes the list of mandatory keys defined in the config.
+	Resolve(
+		configDefaults map[string]interface{},
+		flagOverrides map[string]string,
+		mandatoryKeys []string, // Added mandatoryKeys
+	) (map[string]interface{}, error)
 }
 
 // --- Placeholder Implementations (for initial structure) ---
@@ -77,11 +82,11 @@ func NewInMemoryTemplateData(path string, content []byte) TemplateData {
 
 // Config represents the parsed configuration data.
 type Config struct {
-	Templates []TemplateSource       `mapstructure:"templates"` // Use mapstructure tags
-	Variables map[string]interface{} `mapstructure:"variables"`
-	Output    string                 `mapstructure:"output"`
-	Hooks     []string               `mapstructure:"hooks"` // Added: List of hook plugin names to run
-	// Add MergeStrategy, Plugin configs etc. later
+	Templates          []TemplateSource       `mapstructure:"templates"`
+	Variables          map[string]interface{} `mapstructure:"variables"`
+	Output             string                 `mapstructure:"output"`
+	Hooks              []string               `mapstructure:"hooks"`
+	MandatoryVariables []string               `mapstructure:"mandatory_variables"` // Added
 }
 
 // TemplateSource defines where to get a template from.
