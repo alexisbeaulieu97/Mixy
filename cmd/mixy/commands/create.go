@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	shared "github.com/alexisbeaulieu97/Mixy/pkg/plugin"
 
 	"github.com/alexisbeaulieu97/Mixy/internal/config"
 	"github.com/alexisbeaulieu97/Mixy/internal/core"
@@ -65,9 +68,23 @@ var createCmd = &cobra.Command{
 		logger = logger.With(slog.String("service", "mixy"))
 		logger.Info("Initializing Mixy create command", slog.String("log_level", level.String()))
 
-		pluginManager := plugin.NewManager("", logger)
+		// Initialize plugin manager with default config
+		pluginConfig := plugin.PluginConfig{
+			PluginDirs: []string{
+				filepath.Join(os.Getenv("HOME"), ".mixy/plugins"),
+				"/usr/local/lib/mixy/plugins",
+				"/usr/lib/mixy/plugins",
+			},
+			ValidationOptions: plugin.ValidationOptions{
+				RequireSignature: false, // TODO: Make this configurable
+				AllowedVersions:  []string{shared.MixyPluginAPIVersion},
+			},
+		}
+
+		pluginManager := plugin.NewManager(pluginConfig, logger)
 		defer pluginManager.Cleanup()
-		logger.Debug("Loading plugins")
+
+		logger.Debug("Loading plugins", slog.Any("plugin_dirs", pluginConfig.PluginDirs))
 		if err := pluginManager.DiscoverAndLoad(); err != nil {
 			pluginLoadErr := core.NewPluginError("failed to initialize plugins", err)
 			logger.Error("Failed to load plugins", slog.Any("error", pluginLoadErr))
