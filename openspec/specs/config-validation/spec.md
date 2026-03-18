@@ -31,10 +31,13 @@ The config validator SHALL warn (not fail) when a local source path does not exi
 - **WHEN** a source references `path: ./nonexistent`
 - **THEN** the system emits a warning but does not fail validation
 
+#### Scenario: Disabled source path is ignored
+- **WHEN** a source sets `enabled: false` and references a missing local path
+- **THEN** the validator does not emit a path-existence warning for that source
+
 ### Requirement: Actionable error messages
 All validation errors SHALL include the field path and a human-readable description of what is wrong and how to fix it.
 
 #### Scenario: Error message format
 - **WHEN** any validation error occurs
 - **THEN** the error message includes the YAML path (e.g., `sources[0].source.type`) and a fix suggestion
-

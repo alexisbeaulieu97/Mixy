@@ -8,9 +8,8 @@ from typing import Annotated
 import typer
 from loguru import logger
 
+from mixy.application.use_cases import validate_project
 from mixy.cli.errors import USER_ERROR_EXIT_CODE, format_validation_issue, raise_cli_error
-from mixy.domain.services import validate
-from mixy.infrastructure.config import load_config
 
 
 def validate_config(
@@ -21,11 +20,10 @@ def validate_config(
 ) -> None:
     """Validate a Mixy config without generating files."""
     try:
-        definition = load_config(config_path)
+        issues = validate_project(config_path)
     except Exception as error:
         raise_cli_error(error)
 
-    issues = validate(definition)
     error_issues = [issue for issue in issues if issue.severity == "error"]
     warning_issues = [issue for issue in issues if issue.severity == "warning"]
 

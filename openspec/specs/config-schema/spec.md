@@ -19,7 +19,7 @@ The system SHALL accept a YAML configuration file with the following top-level f
 - **THEN** the system raises an error indicating unsupported config version
 
 ### Requirement: Source definition as discriminated union
-The system SHALL support source definitions discriminated by a `type` field with values: `local_dir`, `local_file`, `git`. Each type SHALL validate its own required fields.
+The system SHALL support source definitions discriminated by a `type` field with values: `local_dir` and `git`. Each type SHALL validate its own required fields.
 
 #### Scenario: Parse local_dir source
 - **WHEN** a source has `type: local_dir` and `path: ./templates`
@@ -28,6 +28,10 @@ The system SHALL support source definitions discriminated by a `type` field with
 #### Scenario: Parse git source
 - **WHEN** a source has `type: git`, `url`, and `ref` fields
 - **THEN** it is parsed as a GitSource with url, ref, and optional subpath
+
+#### Scenario: Reject local_file source
+- **WHEN** a source has `type: local_file`
+- **THEN** the system raises a validation error listing the supported source types
 
 #### Scenario: Reject source with unknown type
 - **WHEN** a source has `type: s3_bucket`
@@ -57,4 +61,3 @@ The system SHALL resolve all relative paths in the config file relative to the c
 #### Scenario: Resolve source path relative to config
 - **WHEN** config at `/home/user/project/mixy.yml` has source path `./templates`
 - **THEN** the resolved path is `/home/user/project/templates`
-

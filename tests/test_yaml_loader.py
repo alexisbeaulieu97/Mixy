@@ -27,6 +27,45 @@ def test_load_full_config() -> None:
     ).resolve()
 
 
+def test_load_config_rejects_unsupported_merge_strategy(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yml"
+    config_path.write_text(
+        'version: "1"\n'
+        "sources:\n"
+        "  - id: base\n"
+        "    merge_strategy: overwrite\n"
+        "    source:\n"
+        "      type: local_dir\n"
+        "      path: ./templates\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigValidationError) as error:
+        load_config(config_path)
+
+    assert error.value.field_path == "sources[0].merge_strategy"
+
+
+def test_load_config_rejects_git_reference_subpath(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yml"
+    config_path.write_text(
+        'version: "1"\n'
+        "sources:\n"
+        "  - id: upstream\n"
+        "    subpath: template\n"
+        "    source:\n"
+        "      type: git\n"
+        "      url: https://example.com/repo.git\n"
+        "      ref: main\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigValidationError) as error:
+        load_config(config_path)
+
+    assert error.value.field_path == "sources[0].subpath"
+
+
 def test_missing_version_raises_config_validation_error() -> None:
     with pytest.raises(ConfigValidationError) as error:
         load_config(FIXTURES_DIR / "missing_version.yml")

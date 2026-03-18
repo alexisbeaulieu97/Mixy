@@ -27,8 +27,8 @@ sources:
 
 Requirements:
 
-- `git` must be installed and available on `PATH`
-- `ref` can be a branch, tag, or commit that `git rev-parse` can resolve
+- `ref` can be a branch, tag, or commit that the Git integration can resolve
+- Mixy uses its Python-backed Git integration path rather than shelling out to `git`
 
 If the configured `subpath` does not exist at the resolved revision, Mixy fails with a
 source-resolution error.

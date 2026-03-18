@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Mixy is a CLI tool that creates a project from one or more templates. A template may come from different source types such as local files, directories, or Git repositories. Templates may contain variables that are resolved at runtime, and the resulting rendered content is merged into a single output project directory.
+Mixy is a CLI tool that creates a project from one or more templates. Templates currently come from local directories or Git repositories. They may contain variables that are resolved at runtime, and the resulting rendered content is merged into a single output project directory.
 
 This document defines the high-level architecture, core domain model, major design decisions, and implementation boundaries so an agent can later decompose the work into tasks and subtasks.
 
@@ -99,20 +99,22 @@ Possible fields:
 * `subpath: str | None`
 * `alias: str | None`
 * `enabled: bool = True`
-* `variables: dict[str, Any] = {}`
-* `merge_strategy: MergeStrategy | None`
+* `values: dict[str, Any] = {}`
+* `merge_strategy: unsupported and rejected by config validation`
 * `render: RenderPolicy | None`
 
 #### SourceDefinition
 
 Abstract concept for where template content comes from.
-Concrete kinds may include:
+Concrete kinds currently supported:
 
-* local file
-* local directory
-* git repository
-* remote archive (future)
-* package/plugin source (future)
+* `local_dir`
+* `git`
+
+Future kinds may include:
+
+* remote archive
+* package/plugin source
 
 #### VariableDefinition
 

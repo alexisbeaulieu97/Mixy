@@ -30,8 +30,10 @@ class SourceResolver:
         materialized: list[MaterializedSource] = []
 
         for reference in sources:
-            source = _apply_reference_subpath(reference)
             try:
+                if not reference.enabled:
+                    continue
+                source = _apply_reference_subpath(reference)
                 resolved = self.resolve(source)
             except SourceResolutionError as error:
                 raise SourceResolutionError(
@@ -46,8 +48,7 @@ class SourceResolver:
                     source_id=reference.id,
                     metadata={
                         **resolved.metadata,
-                        "alias": reference.alias or "",
-                        "enabled": str(reference.enabled).lower(),
+                        **({"alias": reference.alias} if reference.alias is not None else {}),
                     },
                 )
             )
@@ -68,7 +69,14 @@ class SourceResolver:
 def _apply_reference_subpath(reference: TemplateReference) -> SourceDefinition:
     source = reference.source
 
-    if source.type != "local_dir" or reference.subpath is None:
+    if reference.subpath is None:
         return source
+
+    if source.type != "local_dir":
+        raise SourceResolutionError(
+            "Reference-level subpath is only supported for local_dir sources; "
+            "use source.subpath for git sources.",
+            suggestion="Move the subpath to source.subpath for git sources.",
+        )
 
     return source.model_copy(update={"subpath": reference.subpath})

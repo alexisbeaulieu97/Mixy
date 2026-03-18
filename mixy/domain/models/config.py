@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 from mixy.domain.enums import ConflictPolicy, VariableType
 
@@ -56,6 +56,27 @@ class TemplateReference(MixyModel):
     enabled: bool = True
     values: dict[str, ScalarValue] = Field(default_factory=dict)
     merge_strategy: str | None = None
+
+    @field_validator("merge_strategy")
+    @classmethod
+    def _reject_merge_strategy(cls, value: str | None) -> str | None:
+        if value is not None:
+            raise ValueError("merge_strategy is unsupported for source entries.")
+        return value
+
+    @field_validator("subpath")
+    @classmethod
+    def _validate_subpath(cls, value: str | None, info: ValidationInfo) -> str | None:
+        if value is None:
+            return value
+
+        source = info.data.get("source")
+        if getattr(source, "type", None) == "git":
+            raise ValueError(
+                "Reference-level subpath is not supported for git sources; use source.subpath."
+            )
+
+        return value
 
 
 class OutputDefinition(MixyModel):

@@ -40,6 +40,9 @@ def validate(definition: ProjectDefinition) -> list[ValidationIssue]:
             )
         seen_ids.add(source.id)
 
+        if not source.enabled:
+            continue
+
         if isinstance(source.source, LocalDirSource):
             _add_path_error(
                 issues=issues,

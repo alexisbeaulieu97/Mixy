@@ -26,16 +26,12 @@ The GitSourceProvider SHALL resolve `git` source definitions by cloning the repo
 - **WHEN** source has `subpath: nonexistent/path` that does not exist in the repo
 - **THEN** the provider raises a `SourceResolutionError` identifying the missing subpath
 
-### Requirement: Git availability check
-The system SHALL verify that `git` is available on the PATH before attempting Git operations.
+### Requirement: Git integration does not require a shell `git` binary
+The system SHALL perform Git source resolution through the current Python-backed integration path and not require a shell `git` executable on PATH.
 
-#### Scenario: Git not installed
-- **WHEN** `git` executable is not found on PATH
-- **THEN** the system raises an error with a message suggesting to install git
-
-#### Scenario: Git available
-- **WHEN** `git --version` succeeds
-- **THEN** Git operations proceed normally
+#### Scenario: Git source resolution
+- **WHEN** a `git` source is resolved
+- **THEN** the provider uses the configured Git integration path rather than shelling out to `git`
 
 ### Requirement: Git fetch and update
 The GitSourceProvider SHALL fetch updates for already-cloned repositories to handle moved branches and new tags.
@@ -50,4 +46,3 @@ The GitSourceProvider SHALL produce a fingerprint based on the repository URL an
 #### Scenario: Same URL and commit
 - **WHEN** fingerprint is computed for the same repo URL and commit SHA
 - **THEN** the fingerprint is identical across invocations
-

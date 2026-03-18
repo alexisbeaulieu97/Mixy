@@ -1,4 +1,4 @@
-"""Variable resolution with precedence, coercion, prompting, and secret masking."""
+"""Variable resolution with precedence, coercion, and validation."""
 
 from __future__ import annotations
 
@@ -6,10 +6,8 @@ import os
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Protocol, cast
+from typing import Any, cast
 
-import typer
-from loguru import logger
 from pydantic import TypeAdapter, ValidationError
 
 from mixy.domain.enums import VariableType
@@ -17,10 +15,6 @@ from mixy.domain.exceptions import VariableResolutionError
 from mixy.domain.models import ScalarValue, VariableDefinition
 
 ResolvedVariables = dict[str, ScalarValue]
-
-
-class PromptFn(Protocol):
-    def __call__(self, text: str, *, hide_input: bool = False) -> str: ...
 
 
 TYPE_ADAPTERS: dict[VariableType, TypeAdapter[Any]] = {
@@ -31,40 +25,26 @@ TYPE_ADAPTERS: dict[VariableType, TypeAdapter[Any]] = {
 }
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ResolutionContext:
-    """All inputs needed to resolve a set of variable definitions.
-
-    Single entry-point for VariableResolver.resolve(). Replaces the scattered
-    keyword arguments across resolve_all / build_effective_context.
-    """
+    """All inputs needed to resolve a set of variable definitions."""
 
     definitions: Mapping[str, VariableDefinition]
     global_values: Mapping[str, object] = field(default_factory=dict)
     source_values: Mapping[str, object] = field(default_factory=dict)
     cli_overrides: Mapping[str, object] = field(default_factory=dict)
     vars_file_values: Mapping[str, object] = field(default_factory=dict)
+    fallback_values: Mapping[str, object] = field(default_factory=dict)
     default_values: Mapping[str, object] = field(default_factory=dict)
     env_prefix: str = "MIXY_VAR_"
     environ: Mapping[str, str] | None = None
-    non_interactive: bool = False
 
 
 class VariableResolver:
     """Resolve variable values from layered sources into typed runtime data."""
 
-    def __init__(self, prompt_fn: PromptFn | None = None) -> None:
-        self._prompt_fn = prompt_fn or cast(PromptFn, typer.prompt)
-        self._secret_values: set[str] = set()
-        self._prompt_cache: dict[str, ScalarValue] = {}
-
     def resolve(self, context: ResolutionContext) -> ResolvedVariables:
-        """Single public entry point. Handles all precedence layers.
-
-        Precedence (highest → lowest):
-            cli_overrides > source_values > vars_file_values > env > global_values
-            > default_values > template defaults > prompt
-        """
+        """Resolve one definition set using the configured precedence layers."""
         env_values = self.read_env_values(
             context.definitions,
             environ=context.environ,
@@ -87,32 +67,26 @@ class VariableResolver:
                 candidate = context.global_values[name]
             elif name in context.default_values:
                 candidate = context.default_values[name]
-            elif name in self._prompt_cache:
-                candidate = self._prompt_cache[name]
+            elif name in context.fallback_values:
+                candidate = context.fallback_values[name]
             else:
                 candidate = definition.default
 
             if candidate is None:
                 if not definition.required:
                     continue
-                if context.non_interactive:
-                    raise VariableResolutionError(
-                        name,
-                        None,
-                        "Required variable is unresolved in non-interactive mode.",
-                        suggestion=(
-                            "Provide the value via `--var`, `--vars-file`, environment, "
-                            "or template defaults."
-                        ),
-                    )
-                raw = self._prompt_for_missing(context.definitions, [name])[name]
-                validated = self._coerce_and_validate(name, definition, raw)
-                self._prompt_cache[name] = validated
-                candidate = validated
+                raise VariableResolutionError(
+                    name,
+                    None,
+                    "Required variable is unresolved.",
+                    suggestion=(
+                        "Provide the value via `--var`, `--vars-file`, environment, "
+                        "or template defaults."
+                    ),
+                )
 
             resolved[name] = self._coerce_and_validate(name, definition, candidate)
 
-        self.register_secret_masking(resolved, context.definitions)
         return resolved
 
     def resolve_all(
@@ -124,8 +98,8 @@ class VariableResolver:
         env_prefix: str = "MIXY_VAR_",
         *,
         vars_file_values: Mapping[str, object] | None = None,
+        fallback_values: Mapping[str, object] | None = None,
         environ: Mapping[str, str] | None = None,
-        non_interactive: bool = False,
     ) -> ResolvedVariables:
         return self.resolve(
             ResolutionContext(
@@ -134,9 +108,9 @@ class VariableResolver:
                 source_values=source_values or {},
                 cli_overrides=cli_overrides or {},
                 vars_file_values=vars_file_values or {},
+                fallback_values=fallback_values or {},
                 env_prefix=env_prefix,
                 environ=environ,
-                non_interactive=non_interactive,
             )
         )
 
@@ -168,14 +142,10 @@ class VariableResolver:
         source_values: Mapping[str, object] | None = None,
         cli_overrides: Mapping[str, object] | None = None,
         default_values: Mapping[str, object] | None = None,
+        fallback_values: Mapping[str, object] | None = None,
         env_prefix: str = "MIXY_VAR_",
         environ: Mapping[str, str] | None = None,
-        non_interactive: bool = False,
-        prompt_cache: dict[str, ScalarValue] | None = None,
     ) -> ResolvedVariables:
-        if prompt_cache is not None:
-            self._prompt_cache.update(prompt_cache)
-
         result = self.resolve(
             ResolutionContext(
                 definitions=definitions,
@@ -183,16 +153,12 @@ class VariableResolver:
                 source_values=source_values or {},
                 cli_overrides=cli_overrides or {},
                 vars_file_values=vars_file_values or {},
+                fallback_values=fallback_values or {},
                 default_values=default_values or {},
                 env_prefix=env_prefix,
                 environ=environ,
-                non_interactive=non_interactive,
             )
         )
-
-        if prompt_cache is not None:
-            prompt_cache.update(self._prompt_cache)
-
         return result
 
     def read_env_values(
@@ -234,72 +200,6 @@ class VariableResolver:
             parsed[key] = value
 
         return parsed
-
-    def register_secret_masking(
-        self,
-        resolved: Mapping[str, ScalarValue],
-        definitions: Mapping[str, VariableDefinition],
-    ) -> None:
-        self._secret_values.update(
-            str(resolved[name])
-            for name, definition in definitions.items()
-            if definition.secret and name in resolved
-        )
-
-        def patch_log_record(record: dict[str, Any]) -> None:
-            message = record["message"]
-            for secret in self._secret_values:
-                if secret:
-                    message = message.replace(secret, "***")
-            record["message"] = message
-
-        logger.configure(patcher=cast(Any, patch_log_record))
-
-    def _select_candidate(
-        self,
-        *,
-        name: str,
-        definition: VariableDefinition,
-        global_values: Mapping[str, object],
-        env_values: Mapping[str, object],
-        vars_file_values: Mapping[str, object],
-        source_values: Mapping[str, object],
-        cli_overrides: Mapping[str, object],
-    ) -> object | None:
-        if name in cli_overrides:
-            return cli_overrides[name]
-        if name in source_values:
-            return source_values[name]
-        if name in vars_file_values:
-            return vars_file_values[name]
-        if name in env_values:
-            return env_values[name]
-        if name in global_values:
-            return global_values[name]
-        return definition.default
-
-    def _prompt_for_missing(
-        self,
-        definitions: Mapping[str, VariableDefinition],
-        missing_required: Sequence[str],
-    ) -> dict[str, str]:
-        prompted: dict[str, str] = {}
-
-        for name in missing_required:
-            definition = definitions[name]
-            prompt_text = self._build_prompt_text(name, definition)
-            prompted[name] = self._prompt_fn(prompt_text, hide_input=definition.secret)
-
-        return prompted
-
-    def _build_prompt_text(self, name: str, definition: VariableDefinition) -> str:
-        parts = [name]
-        if definition.description:
-            parts.append(definition.description)
-        if definition.choices:
-            choices = ", ".join(str(choice) for choice in definition.choices)
-            parts.append(f"choices: {choices}")
-        return " - ".join(parts)
 
     def _coerce_and_validate(
         self,

@@ -132,6 +132,9 @@ generated/
 Successful generation prints a summary with the output path plus counts for created directories,
 rendered files, copied files, skipped files, and failures.
 
+If a filesystem write fails during generation, Mixy stops at the failing operation and leaves
+any already-written output in place; cleanup remains your responsibility.
+
 ## Next steps
 
 - Learn the full config model in [`configuration.md`](configuration.md)

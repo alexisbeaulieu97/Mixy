@@ -22,6 +22,7 @@ from mixy.domain.models import (
     RenderTemplate,
     SkipExisting,
 )
+from mixy.domain.models.pre_merge_artifact import PreMergeArtifact, PreMergeEntry
 from mixy.domain.services.metadata_resolver import is_metadata_path
 
 RenderDecisionKey = tuple[str, str]
@@ -44,8 +45,11 @@ class MergePlanner:
         sources: list[MaterializedSource],
         output: OutputDefinition,
         render_decisions: Mapping[RenderDecisionKey, RenderedFile],
+        *,
+        pre_merge_artifact: PreMergeArtifact | None = None,
     ) -> RenderPlan:
-        directory_paths, file_entries = self._collect_all(sources, output.path, render_decisions)
+        artifact = pre_merge_artifact or self._collect_pre_merge_artifact(sources, render_decisions)
+        directory_paths, file_entries = self._materialize_pre_merge_artifact(artifact, output.path)
         conflicts = self._detect_conflicts(directory_paths, file_entries)
 
         file_vs_directory = [
@@ -74,16 +78,14 @@ class MergePlanner:
             output_path=output.path,
         )
 
-    def _collect_all(
+    def _collect_pre_merge_artifact(
         self,
         sources: list[MaterializedSource],
-        output_path: Path,
         render_decisions: Mapping[RenderDecisionKey, RenderedFile],
-    ) -> tuple[dict[Path, list[str]], list[PlannedEntry]]:
-        """Single-pass collection of directory paths and file entries."""
+    ) -> PreMergeArtifact:
         directories: dict[Path, list[str]] = defaultdict(list)
-        directories[output_path].append("<output>")
-        entries: list[PlannedEntry] = []
+        directories[Path(".")].append("<output>")
+        entries: list[PreMergeEntry] = []
 
         for source in sources:
             for candidate in sorted(source.root_path.rglob("*")):
@@ -92,27 +94,47 @@ class MergePlanner:
                     continue
 
                 if candidate.is_dir():
-                    directories[output_path / relative].append(source.source_id)
+                    directories[relative].append(source.source_id)
                 elif candidate.is_file():
-                    if relative.parent != Path("."):
-                        directories[output_path / relative.parent].append(source.source_id)
-
                     key = self.render_decision_key(source.source_id, relative)
                     decision = render_decisions[key]
-                    output_relative = (
-                        decision.output_relative_path or relative.parent / decision.output_name
-                    )
                     entries.append(
-                        PlannedEntry(
+                        PreMergeEntry(
                             source_id=source.source_id,
                             source_path=candidate,
                             relative_path=relative,
-                            output_path=output_path / output_relative,
+                            output_relative_path=(
+                                decision.output_relative_path or relative.parent / decision.output_name
+                            ),
                             rendered_file=decision,
                         )
                     )
 
-        return directories, entries
+        return PreMergeArtifact(
+            directory_paths=dict(directories),
+            file_entries=entries,
+        )
+
+    def _materialize_pre_merge_artifact(
+        self,
+        artifact: PreMergeArtifact,
+        output_path: Path,
+    ) -> tuple[dict[Path, list[str]], list[PlannedEntry]]:
+        directories = {
+            output_path if relative_path == Path(".") else output_path / relative_path: owner_ids
+            for relative_path, owner_ids in artifact.directory_paths.items()
+        }
+        file_entries = [
+            PlannedEntry(
+                source_id=entry.source_id,
+                source_path=entry.source_path,
+                relative_path=entry.relative_path,
+                output_path=output_path / entry.output_relative_path,
+                rendered_file=entry.rendered_file,
+            )
+            for entry in artifact.file_entries
+        ]
+        return directories, file_entries
 
     def _detect_conflicts(
         self,

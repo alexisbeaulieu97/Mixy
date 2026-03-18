@@ -6,6 +6,7 @@ from mixy.application.ports import SourceProvider
 from mixy.application.services import SourceResolver
 from mixy.domain.exceptions import SourceResolutionError
 from mixy.domain.models import (
+    GitSource,
     LocalDirSource,
     MaterializedSource,
     SourceDefinition,
@@ -68,6 +69,60 @@ def test_resolve_all_uses_template_reference_id_and_subpath() -> None:
 
     assert materialized[0].source_id == "base"
     assert provider.seen_sources[0].subpath == "nested"
+
+
+def test_resolve_all_skips_disabled_sources() -> None:
+    provider = StubLocalProvider()
+    resolver = SourceResolver([provider])
+
+    materialized = resolver.resolve_all(
+        [
+            TemplateReference(
+                id="base",
+                enabled=False,
+                source=LocalDirSource(type="local_dir", path=FIXTURES_DIR / "base-template"),
+            )
+        ]
+    )
+
+    assert materialized == []
+    assert provider.seen_sources == []
+
+
+def test_resolve_all_keeps_alias_as_metadata_only() -> None:
+    provider = StubLocalProvider()
+    resolver = SourceResolver([provider])
+
+    materialized = resolver.resolve_all(
+        [
+            TemplateReference(
+                id="base",
+                alias="starter",
+                source=LocalDirSource(type="local_dir", path=FIXTURES_DIR / "base-template"),
+            )
+        ]
+    )
+
+    assert materialized[0].metadata == {"alias": "starter"}
+
+
+def test_resolve_all_rejects_git_reference_subpath() -> None:
+    provider = StubLocalProvider()
+    resolver = SourceResolver([provider])
+    reference = TemplateReference.model_construct(
+        id="upstream",
+        source=GitSource(
+            type="git",
+            url="https://example.com/repo.git",
+            ref="main",
+        ),
+        subpath="template",
+    )
+
+    with pytest.raises(SourceResolutionError) as error:
+        resolver.resolve_all([reference])
+
+    assert "source.subpath" in str(error.value)
 
 
 def test_plugin_manager_returns_application_port_providers() -> None:

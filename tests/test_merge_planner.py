@@ -14,7 +14,9 @@ from mixy.domain.models import (
     RenderTemplate,
     SkipExisting,
 )
+from mixy.domain.models.pre_merge_artifact import PreMergeArtifact, PreMergeEntry
 from mixy.domain.services import MergePlanner
+from mixy.domain.services.metadata_resolver import is_metadata_path
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "merge"
 
@@ -141,6 +143,49 @@ def test_metadata_files_are_excluded_from_plans() -> None:
     assert not any(path.endswith(".mixy.yml") for path in output_paths)
 
 
+def test_pre_merge_artifact_path_matches_direct_collection() -> None:
+    planner = MergePlanner()
+    sources = [materialized("source-a"), materialized("source-b")]
+    render_decisions = render_decisions_for(sources)
+    expected = planner.build_plan(
+        sources,
+        output_definition(ConflictPolicy.OVERWRITE),
+        render_decisions,
+    )
+
+    actual = planner.build_plan(
+        sources,
+        output_definition(ConflictPolicy.OVERWRITE),
+        render_decisions,
+        pre_merge_artifact=pre_merge_artifact_for(sources, render_decisions),
+    )
+
+    assert [(type(op), getattr(op, "output_path", getattr(op, "path", None))) for op in actual.operations] == [
+        (type(op), getattr(op, "output_path", getattr(op, "path", None)))
+        for op in expected.operations
+    ]
+    assert actual.conflicts == expected.conflicts
+
+
+def test_pre_merge_artifact_preserves_empty_directories(tmp_path: Path) -> None:
+    planner = MergePlanner()
+    source_root = tmp_path / "source"
+    (source_root / "empty").mkdir(parents=True)
+    (source_root / "README.md").write_text("hello\n", encoding="utf-8")
+    source = MaterializedSource(root_path=source_root, source_id="source", fingerprint="source")
+    render_decisions = render_decisions_for([source])
+
+    plan = planner.build_plan(
+        [source],
+        output_definition(),
+        render_decisions,
+        pre_merge_artifact=pre_merge_artifact_for([source], render_decisions),
+    )
+
+    created_dirs = {operation.path for operation in plan.operations if isinstance(operation, CreateDir)}
+    assert output_definition().path / "empty" in created_dirs
+
+
 def test_render_plan_lists_all_output_paths() -> None:
     planner = MergePlanner()
     source = materialized("source-a")
@@ -185,3 +230,36 @@ def render_decisions_for(
             )
 
     return decisions
+
+
+def pre_merge_artifact_for(
+    sources: list[MaterializedSource],
+    render_decisions: dict[tuple[str, str], RenderedFile],
+) -> PreMergeArtifact:
+    planner = MergePlanner()
+    directory_paths: dict[Path, list[str]] = {Path("."): ["<output>"]}
+    file_entries: list[PreMergeEntry] = []
+
+    for source in sources:
+        for candidate in sorted(source.root_path.rglob("*")):
+            relative = candidate.relative_to(source.root_path)
+            if is_metadata_path(relative):
+                continue
+            if candidate.is_dir():
+                directory_paths.setdefault(relative, []).append(source.source_id)
+                continue
+
+            key = planner.render_decision_key(source.source_id, relative)
+            decision = render_decisions[key]
+            file_entries.append(
+                PreMergeEntry(
+                    source_id=source.source_id,
+                    source_path=candidate,
+                    relative_path=relative,
+                    output_relative_path=decision.output_relative_path
+                    or relative.parent / decision.output_name,
+                    rendered_file=decision,
+                )
+            )
+
+    return PreMergeArtifact(directory_paths=directory_paths, file_entries=file_entries)

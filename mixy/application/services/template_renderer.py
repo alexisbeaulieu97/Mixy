@@ -7,21 +7,20 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
-from jinja2 import TemplateError
-
+from mixy.application.ports import RenderingAdapter, RenderingAdapterError
 from mixy.domain.exceptions import RenderingError
 from mixy.domain.models import RenderedFile
-from mixy.infrastructure.rendering.binary_detection import is_binary
-from mixy.infrastructure.rendering.jinja_renderer import (
-    UndefinedVariableError,
-    has_jinja_suffix,
-    render_string,
-    strip_jinja_suffix,
-)
 
 
 class TemplateRenderer:
     """Render template paths and file contents using Jinja2."""
+
+    def __init__(self, *, rendering_adapter: RenderingAdapter | None = None) -> None:
+        if rendering_adapter is None:
+            from mixy.application.composition import build_rendering_adapter
+
+            rendering_adapter = build_rendering_adapter()
+        self._rendering_adapter = rendering_adapter
 
     def render_file(
         self,
@@ -32,9 +31,9 @@ class TemplateRenderer:
         copy_mode: str | None = None,
         render_text_files: bool = True,
     ) -> RenderedFile:
-        output_name = strip_jinja_suffix(source_path.name)
-        forced_render = has_jinja_suffix(source_path.name)
-        binary = is_binary(source_path)
+        output_name = self._rendering_adapter.strip_jinja_suffix(source_path.name)
+        forced_render = self._rendering_adapter.has_jinja_suffix(source_path.name)
+        binary = self._rendering_adapter.is_binary(source_path)
 
         if binary:
             return RenderedFile(
@@ -60,19 +59,15 @@ class TemplateRenderer:
             )
 
         try:
-            rendered = render_string(source_path.read_text(encoding="utf-8"), dict(context))
-        except UndefinedVariableError as error:
+            rendered = self._rendering_adapter.render_string(
+                source_path.read_text(encoding="utf-8"),
+                dict(context),
+            )
+        except RenderingAdapterError as error:
             raise RenderingError(
                 file_path=str(source_path),
-                variable_name=error.name,
-                reason=str(error),
-                suggestion="Provide the missing variable or update the template expression.",
-            ) from error
-        except TemplateError as error:
-            raise RenderingError(
-                file_path=str(source_path),
-                variable_name=None,
-                reason=str(error),
+                variable_name=error.variable_name,
+                reason=error.reason,
                 suggestion="Provide the missing variable or update the template expression.",
             ) from error
 
@@ -94,26 +89,19 @@ class TemplateRenderer:
         enabled: bool,
     ) -> str:
         if not enabled:
-            return strip_jinja_suffix(name)
+            return self._rendering_adapter.strip_jinja_suffix(name)
 
         try:
-            rendered = render_string(name, dict(context))
-        except UndefinedVariableError as error:
+            rendered = self._rendering_adapter.render_string(name, dict(context))
+        except RenderingAdapterError as error:
             raise RenderingError(
                 file_path=name,
-                variable_name=error.name,
-                reason=str(error),
-                suggestion="Ensure the rendered output path only uses defined variables.",
-            ) from error
-        except TemplateError as error:
-            raise RenderingError(
-                file_path=name,
-                variable_name=None,
-                reason=str(error),
+                variable_name=error.variable_name,
+                reason=error.reason,
                 suggestion="Ensure the rendered output path only uses defined variables.",
             ) from error
 
-        return strip_jinja_suffix(rendered)
+        return self._rendering_adapter.strip_jinja_suffix(rendered)
 
     def is_excluded(
         self,

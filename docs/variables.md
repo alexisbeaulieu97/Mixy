@@ -169,6 +169,9 @@ Use `--non-interactive` to fail instead of prompting:
 mixy generate mixy.yml --non-interactive
 ```
 
+Prompting is handled by the application layer. The domain resolver raises a
+`VariableResolutionError` when a required variable remains unresolved.
+
 ## Type coercion
 
 Mixy coerces string inputs to the declared type.

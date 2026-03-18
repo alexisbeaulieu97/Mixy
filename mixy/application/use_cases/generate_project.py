@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
+from mixy.application.composition import build_generation_executor
+from mixy.application.ports import MetadataResolverFactory
 from mixy.application.services import SourceResolver, TemplateRenderer
 from mixy.application.use_cases.plan_project import (
     ConfigLoader,
@@ -23,7 +25,6 @@ from mixy.domain.models import (
     SkipExisting,
 )
 from mixy.domain.services import MergePlanner, VariableResolver
-from mixy.infrastructure.config import load_config, load_vars_file
 from mixy.infrastructure.filesystem.file_writer import GenerationExecutor, GenerationResult
 
 
@@ -36,16 +37,17 @@ def generate_project(
     non_interactive: bool = False,
     dry_run: bool = False,
     overwrite: bool = False,
-    config_loader: ConfigLoader = load_config,
-    vars_file_loader: VarsFileLoader = load_vars_file,
+    config_loader: ConfigLoader | None = None,
+    vars_file_loader: VarsFileLoader | None = None,
     config_validator: ValidationFn | None = None,
     variable_resolver: VariableResolver | None = None,
     source_resolver: SourceResolver | None = None,
     template_renderer: TemplateRenderer | None = None,
+    metadata_resolver_factory: MetadataResolverFactory | None = None,
     merge_planner: MergePlanner | None = None,
     executor: GenerationExecutor | None = None,
 ) -> GenerationResult | str:
-    generation_executor = executor or GenerationExecutor()
+    generation_executor = build_generation_executor(executor)
 
     try:
         planned = plan_project(
@@ -61,6 +63,7 @@ def generate_project(
             variable_resolver=variable_resolver,
             source_resolver=source_resolver,
             template_renderer=template_renderer,
+            metadata_resolver_factory=metadata_resolver_factory,
             merge_planner=merge_planner,
         )
     except MergeConflictError as error:

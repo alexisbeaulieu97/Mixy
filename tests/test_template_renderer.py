@@ -2,10 +2,33 @@ from pathlib import Path
 
 import pytest
 
+from mixy.application.ports import RenderingAdapter, RenderingAdapterError
 from mixy.application.services import TemplateRenderer
 from mixy.domain.exceptions import RenderingError
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "templates"
+
+
+class StubRenderingAdapter(RenderingAdapter):
+    def __init__(self, *, error: RenderingAdapterError | None = None) -> None:
+        self.error = error
+
+    def is_binary(self, source_path: Path) -> bool:
+        return False
+
+    def strip_jinja_suffix(self, name: str) -> str:
+        return name.removesuffix(".j2")
+
+    def has_jinja_suffix(self, name: str) -> bool:
+        return name.endswith(".j2")
+
+    def render_string(self, template: str, context: dict[str, object]) -> str:
+        if self.error is not None:
+            raise self.error
+        rendered = template
+        for key, value in context.items():
+            rendered = rendered.replace(f"{{{{ {key} }}}}", str(value))
+        return rendered
 
 
 def test_render_file_renders_text_content() -> None:
@@ -22,7 +45,11 @@ def test_render_file_renders_text_content() -> None:
 
 
 def test_render_file_wraps_undefined_errors() -> None:
-    renderer = TemplateRenderer()
+    renderer = TemplateRenderer(
+        rendering_adapter=StubRenderingAdapter(
+            error=RenderingAdapterError("'name' is undefined", variable_name="name")
+        )
+    )
 
     with pytest.raises(RenderingError) as error:
         renderer.render_file(FIXTURES_DIR / "hello.txt", {})
@@ -109,6 +136,20 @@ def test_render_path_segment_can_leave_names_unrendered() -> None:
         )
         == "{{ project_name }}"
     )
+
+
+def test_render_path_wraps_non_variable_rendering_failures() -> None:
+    renderer = TemplateRenderer(
+        rendering_adapter=StubRenderingAdapter(
+            error=RenderingAdapterError("unexpected template failure")
+        )
+    )
+
+    with pytest.raises(RenderingError) as error:
+        renderer.render_path("{{ broken }}", {})
+
+    assert error.value.variable_name is None
+    assert error.value.reason == "unexpected template failure"
 
 
 def test_integration_renders_mixed_template_directory() -> None:

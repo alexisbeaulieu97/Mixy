@@ -69,6 +69,26 @@ def test_validate_with_invalid_config_exits_one_and_shows_all_issues(
     assert "variables.count.default" in result.output
 
 
+def test_validate_command_delegates_to_application_use_case(
+    runner: CliRunner,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = _write_valid_config(tmp_path)
+    validate_module = importlib.import_module("mixy.cli.commands.validate")
+
+    def fake_validate_project(path: Path) -> list[object]:
+        assert path == config_path
+        return []
+
+    monkeypatch.setattr(validate_module, "validate_project", fake_validate_project)
+
+    result = runner.invoke(app, ["validate", str(config_path)])
+
+    assert result.exit_code == 0
+    assert "Config is valid:" in result.output
+
+
 def test_blocking_local_source_path_validation_is_consistent(
     runner: CliRunner,
     tmp_path: Path,
@@ -283,8 +303,8 @@ def test_generate_and_inspect_share_source_provider_registry(
             return "tracking"
 
     provider = TrackingLocalProvider()
-    planning_module = importlib.import_module("mixy.application.use_cases.plan_project")
-    monkeypatch.setattr(planning_module, "get_source_providers", lambda: [provider])
+    composition_module = importlib.import_module("mixy.application.composition")
+    monkeypatch.setattr(composition_module, "get_source_providers", lambda: [provider])
 
     inspect_result = runner.invoke(app, ["inspect", str(config_path)])
     assert inspect_result.exit_code == 0

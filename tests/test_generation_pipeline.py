@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -76,6 +77,93 @@ def test_dry_run_produces_plan_without_creating_files(tmp_path: Path) -> None:
     assert isinstance(result, str)
     assert "Action | Output Path | Source" in result
     assert not (tmp_path / "out").exists()
+
+
+def test_pipeline_skips_disabled_sources_during_planning_and_generation(
+    tmp_path: Path,
+) -> None:
+    enabled_source = tmp_path / "enabled"
+    enabled_source.mkdir()
+    (enabled_source / "README.md").write_text("# enabled\n", encoding="utf-8")
+
+    config_path = tmp_path / "config.yml"
+    config_path.write_text(
+        'version: "1"\n'
+        "sources:\n"
+        "  - id: enabled\n"
+        "    source:\n"
+        "      type: local_dir\n"
+        f"      path: {enabled_source}\n"
+        "  - id: disabled\n"
+        "    enabled: false\n"
+        "    source:\n"
+        "      type: local_dir\n"
+        f"      path: {tmp_path / 'missing'}\n"
+        "output:\n"
+        f"  path: {tmp_path / 'out'}\n",
+        encoding="utf-8",
+    )
+
+    planned = plan_project(
+        config_path,
+        non_interactive=True,
+    )
+    result = generate_project(
+        config_path,
+        non_interactive=True,
+    )
+
+    assert [source.source_id for source in planned.prepared.materialized_sources] == [
+        "enabled"
+    ]
+    assert (tmp_path / "out" / "README.md").read_text(encoding="utf-8") == "# enabled"
+    assert result.output_path == tmp_path / "out"
+
+
+def test_plan_project_succeeds_from_running_event_loop_with_multiple_sources(
+    tmp_path: Path,
+) -> None:
+    first_source = tmp_path / "first"
+    first_source.mkdir()
+    (first_source / "README.md").write_text("# first\n", encoding="utf-8")
+    second_source = tmp_path / "second"
+    second_source.mkdir()
+    (second_source / "docs").mkdir()
+    (second_source / "docs" / "guide.md").write_text("guide\n", encoding="utf-8")
+
+    config_path = tmp_path / "config.yml"
+    config_path.write_text(
+        'version: "1"\n'
+        "sources:\n"
+        "  - id: first\n"
+        "    source:\n"
+        "      type: local_dir\n"
+        f"      path: {first_source}\n"
+        "  - id: second\n"
+        "    source:\n"
+        "      type: local_dir\n"
+        f"      path: {second_source}\n"
+        "output:\n"
+        f"  path: {tmp_path / 'out'}\n",
+        encoding="utf-8",
+    )
+
+    async def call_plan() -> object:
+        return plan_project(config_path, non_interactive=True)
+
+    planned = asyncio.run(call_plan())
+
+    assert [source.source_id for source in planned.prepared.materialized_sources] == [
+        "first",
+        "second",
+    ]
+    output_paths = [
+        operation.output_path
+        for operation in planned.plan.operations
+        if hasattr(operation, "output_path")
+    ]
+    assert tmp_path / "out" / "README.md" in output_paths
+    assert tmp_path / "out" / "docs" / "guide.md" in output_paths
 
 
 def test_pipeline_fails_before_writes_on_config_error(tmp_path: Path) -> None:
@@ -296,6 +384,8 @@ def test_generation_executor_records_partial_failure_details(
     assert result.failed_operation_details[0].target_path == output_root / "broken.txt"
     assert result.failed_operation_details[0].source_id == "broken"
     assert result.failed_operation_details[0].reason == "disk full"
+    assert result.skipped_count == 0
+    assert output_root.exists()
     assert (output_root / "rendered.txt").exists()
     assert (output_root / "overwrite.txt").exists()
     assert not (output_root / "skipped.txt").exists()

@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-from loguru import logger
 
 from mixy.domain.enums import VariableType
 from mixy.domain.exceptions import VariableResolutionError
@@ -125,53 +124,11 @@ def test_build_source_context_merges_global_values_and_source_overrides() -> Non
     assert context == {"project_name": "global", "port": 3000}
 
 
-def test_prompting_resolves_missing_required_variable() -> None:
-    prompts: list[tuple[str, bool]] = []
-
-    def fake_prompt(text: str, *, hide_input: bool = False) -> str:
-        prompts.append((text, hide_input))
-        return "demo_project"
-
-    resolver = VariableResolver(prompt_fn=fake_prompt)
-    definitions = {
-        "project_name": VariableDefinition(
-            type=VariableType.STR,
-            description="Project slug",
-            choices=["demo_project", "sample_project"],
-        )
-    }
-
-    resolved = resolver.resolve_all(definitions)
-
-    assert resolved["project_name"] == "demo_project"
-    assert "Project slug" in prompts[0][0]
-    assert "choices: demo_project, sample_project" in prompts[0][0]
-
-
 def test_non_interactive_mode_raises_for_missing_required_variable() -> None:
     resolver = VariableResolver()
 
     with pytest.raises(VariableResolutionError):
-        resolver.resolve_all(
-            {"project_name": VariableDefinition(type=VariableType.STR)},
-            non_interactive=True,
-        )
-
-
-def test_secret_prompt_uses_hidden_input() -> None:
-    prompts: list[tuple[str, bool]] = []
-
-    def fake_prompt(text: str, *, hide_input: bool = False) -> str:
-        prompts.append((text, hide_input))
-        return "hunter2"
-
-    resolver = VariableResolver(prompt_fn=fake_prompt)
-    definitions = {"db_password": VariableDefinition(type=VariableType.STR, secret=True)}
-
-    resolved = resolver.resolve_all(definitions)
-
-    assert resolved["db_password"] == "hunter2"
-    assert prompts[0][1] is True
+        resolver.resolve_all({"project_name": VariableDefinition(type=VariableType.STR)})
 
 
 def test_parse_cli_overrides_parses_key_value_pairs() -> None:
@@ -187,30 +144,3 @@ def test_parse_cli_overrides_rejects_invalid_input() -> None:
 
     with pytest.raises(VariableResolutionError):
         resolver.parse_cli_overrides(["missing-separator"])
-
-
-def test_secret_masking_replaces_secret_values_in_log_output() -> None:
-    sink: list[str] = []
-    handler_id = logger.add(sink.append, format="{message}")
-
-    try:
-        resolver = VariableResolver()
-        definitions = {
-            "db_password": VariableDefinition(type=VariableType.STR, secret=True),
-            "project_name": VariableDefinition(type=VariableType.STR),
-        }
-        resolver.resolve_all(
-            definitions,
-            global_values={"db_password": "hunter2", "project_name": "mixy"},
-        )
-
-        logger.info("Resolved secret {}", "hunter2")
-        logger.info("Resolved project {}", "mixy")
-    finally:
-        logger.remove(handler_id)
-        logger.configure(patcher=None)
-
-    joined = "\n".join(sink)
-    assert "***" in joined
-    assert "hunter2" not in joined
-    assert "mixy" in joined

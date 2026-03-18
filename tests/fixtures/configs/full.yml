@@ -20,7 +20,6 @@ sources:
   - id: base
     alias: starter
     enabled: true
-    merge_strategy: overwrite
     values:
       project_name: demo
     source:
@@ -31,7 +30,6 @@ sources:
       type: local_dir
       path: ./templates/readme
   - id: upstream
-    subpath: python
     source:
       type: git
       url: https://example.com/templates.git

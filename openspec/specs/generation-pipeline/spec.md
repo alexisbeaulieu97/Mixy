@@ -33,10 +33,18 @@ The system SHALL complete all validation, resolution, and planning before writin
 - **WHEN** a required variable has no value and `--non-interactive` is set
 - **THEN** the system reports the missing variable and writes no files
 
+### Requirement: Generation failure may leave partial output
+The system SHALL stop filesystem execution at the first write failure and report the failure without guaranteeing rollback or cleanup of already-written output.
+
+#### Scenario: Write failure during generation
+- **WHEN** a filesystem write fails after some output has already been written
+- **THEN** the executor stops at the failed operation
+- **AND** earlier files or directories remain on disk
+- **AND** the failure report identifies the failed operation and target path
+
 ### Requirement: Generation summary
 After successful generation, the system SHALL print a summary showing counts of directories created, files rendered, files copied raw, and files skipped.
 
 #### Scenario: Summary after generation
 - **WHEN** generation completes successfully
 - **THEN** the system prints a summary with operation counts and the output path
-

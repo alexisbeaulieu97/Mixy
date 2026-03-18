@@ -56,11 +56,11 @@ sources:
 
 Optional source entry fields:
 
-- `alias`: label stored in source metadata
-- `enabled`: boolean flag stored in source metadata
-- `subpath`: only applied to `local_dir` references in the current resolver
+- `alias`: label stored in source metadata only
+- `enabled`: when `false`, the source is skipped during planning and generation
+- `subpath`: reference-level override supported for `local_dir` sources only
 - `values`: per-source variable overrides used only when rendering that source
-- `merge_strategy`: present in the schema, but not interpreted by the current merge planner
+- `merge_strategy`: unsupported and rejected by config validation
 
 ## `local_dir` source
 
@@ -85,6 +85,8 @@ sources:
     subpath: services/api
 ```
 
+Reference-level `subpath` is only supported for `local_dir` entries. For git-backed templates, set `subpath` under `source` instead.
+
 ## `git` source
 
 Use `git` to read a template from a repository and ref.
@@ -96,17 +98,6 @@ sources:
       type: git
       url: https://github.com/example/templates.git
       ref: main
-```
-
-Use `subpath` inside the repository:
-
-```yaml
-sources:
-  - id: upstream
-    source:
-      type: git
-      url: https://github.com/example/templates.git
-      ref: v1.2.0
       subpath: python/service
 ```
 
