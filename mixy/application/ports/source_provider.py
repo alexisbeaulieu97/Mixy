@@ -1,4 +1,4 @@
-"""Source provider protocol."""
+"""Application-owned source provider contract."""
 
 from __future__ import annotations
 

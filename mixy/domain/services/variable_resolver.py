@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Any, Protocol, cast
 
 import typer
@@ -30,12 +31,89 @@ TYPE_ADAPTERS: dict[VariableType, TypeAdapter[Any]] = {
 }
 
 
+@dataclass
+class ResolutionContext:
+    """All inputs needed to resolve a set of variable definitions.
+
+    Single entry-point for VariableResolver.resolve(). Replaces the scattered
+    keyword arguments across resolve_all / build_effective_context.
+    """
+
+    definitions: Mapping[str, VariableDefinition]
+    global_values: Mapping[str, object] = field(default_factory=dict)
+    source_values: Mapping[str, object] = field(default_factory=dict)
+    cli_overrides: Mapping[str, object] = field(default_factory=dict)
+    vars_file_values: Mapping[str, object] = field(default_factory=dict)
+    default_values: Mapping[str, object] = field(default_factory=dict)
+    env_prefix: str = "MIXY_VAR_"
+    environ: Mapping[str, str] | None = None
+    non_interactive: bool = False
+
+
 class VariableResolver:
     """Resolve variable values from layered sources into typed runtime data."""
 
     def __init__(self, prompt_fn: PromptFn | None = None) -> None:
         self._prompt_fn = prompt_fn or cast(PromptFn, typer.prompt)
         self._secret_values: set[str] = set()
+        self._prompt_cache: dict[str, ScalarValue] = {}
+
+    def resolve(self, context: ResolutionContext) -> ResolvedVariables:
+        """Single public entry point. Handles all precedence layers.
+
+        Precedence (highest → lowest):
+            cli_overrides > source_values > vars_file_values > env > global_values
+            > default_values > template defaults > prompt
+        """
+        env_values = self.read_env_values(
+            context.definitions,
+            environ=context.environ,
+            prefix=context.env_prefix,
+        )
+        resolved: ResolvedVariables = {}
+
+        for name, definition in context.definitions.items():
+            candidate: object | None = None
+
+            if name in context.cli_overrides:
+                candidate = context.cli_overrides[name]
+            elif name in context.source_values:
+                candidate = context.source_values[name]
+            elif name in context.vars_file_values:
+                candidate = context.vars_file_values[name]
+            elif name in env_values:
+                candidate = env_values[name]
+            elif name in context.global_values:
+                candidate = context.global_values[name]
+            elif name in context.default_values:
+                candidate = context.default_values[name]
+            elif name in self._prompt_cache:
+                candidate = self._prompt_cache[name]
+            else:
+                candidate = definition.default
+
+            if candidate is None:
+                if not definition.required:
+                    continue
+                if context.non_interactive:
+                    raise VariableResolutionError(
+                        name,
+                        None,
+                        "Required variable is unresolved in non-interactive mode.",
+                        suggestion=(
+                            "Provide the value via `--var`, `--vars-file`, environment, "
+                            "or template defaults."
+                        ),
+                    )
+                raw = self._prompt_for_missing(context.definitions, [name])[name]
+                validated = self._coerce_and_validate(name, definition, raw)
+                self._prompt_cache[name] = validated
+                candidate = validated
+
+            resolved[name] = self._coerce_and_validate(name, definition, candidate)
+
+        self.register_secret_masking(resolved, context.definitions)
+        return resolved
 
     def resolve_all(
         self,
@@ -49,48 +127,18 @@ class VariableResolver:
         environ: Mapping[str, str] | None = None,
         non_interactive: bool = False,
     ) -> ResolvedVariables:
-        env_values = self.read_env_values(definitions, environ=environ, prefix=env_prefix)
-        resolved: ResolvedVariables = {}
-
-        for name, definition in definitions.items():
-            candidate = self._select_candidate(
-                name=name,
-                definition=definition,
+        return self.resolve(
+            ResolutionContext(
+                definitions=definitions,
                 global_values=global_values or {},
-                env_values=env_values,
-                vars_file_values=vars_file_values or {},
                 source_values=source_values or {},
                 cli_overrides=cli_overrides or {},
+                vars_file_values=vars_file_values or {},
+                env_prefix=env_prefix,
+                environ=environ,
+                non_interactive=non_interactive,
             )
-
-            if candidate is None:
-                continue
-
-            resolved[name] = self._coerce_and_validate(name, definition, candidate)
-
-        missing_required = [
-            name
-            for name, definition in definitions.items()
-            if definition.required and name not in resolved
-        ]
-        if missing_required:
-            if non_interactive:
-                missing_display = ", ".join(sorted(missing_required))
-                raise VariableResolutionError(
-                    missing_display,
-                    None,
-                    "Required variables are unresolved in non-interactive mode.",
-                    suggestion=(
-                        "Provide required values via `--var`, `--vars-file`, or config defaults."
-                    ),
-                )
-
-            prompted = self._prompt_for_missing(definitions, missing_required)
-            for name, raw_value in prompted.items():
-                resolved[name] = self._coerce_and_validate(name, definitions[name], raw_value)
-
-        self.register_secret_masking(resolved, definitions)
-        return resolved
+        )
 
     def build_source_context(
         self,
@@ -125,53 +173,27 @@ class VariableResolver:
         non_interactive: bool = False,
         prompt_cache: dict[str, ScalarValue] | None = None,
     ) -> ResolvedVariables:
-        env_values = self.read_env_values(definitions, environ=environ, prefix=env_prefix)
-        resolved: ResolvedVariables = dict(resolved_global)
-        prompted_values = dict(prompt_cache or {})
+        if prompt_cache is not None:
+            self._prompt_cache.update(prompt_cache)
 
-        for name, definition in definitions.items():
-            candidate = self._select_candidate(
-                name=name,
-                definition=definition,
-                global_values=global_values or {},
-                env_values=env_values,
-                vars_file_values=vars_file_values or {},
+        result = self.resolve(
+            ResolutionContext(
+                definitions=definitions,
+                global_values=dict(resolved_global) | dict(global_values or {}),
                 source_values=source_values or {},
                 cli_overrides=cli_overrides or {},
+                vars_file_values=vars_file_values or {},
+                default_values=default_values or {},
+                env_prefix=env_prefix,
+                environ=environ,
+                non_interactive=non_interactive,
             )
+        )
 
-            if candidate is None and name in resolved_global:
-                candidate = resolved_global[name]
-            if candidate is None and name in (default_values or {}):
-                candidate = (default_values or {})[name]
-            if candidate is None and name in prompted_values:
-                candidate = prompted_values[name]
-            if candidate is None:
-                candidate = definition.default
+        if prompt_cache is not None:
+            prompt_cache.update(self._prompt_cache)
 
-            if candidate is None:
-                if not definition.required:
-                    continue
-                if non_interactive:
-                    raise VariableResolutionError(
-                        name,
-                        None,
-                        "Required variable is unresolved in non-interactive mode.",
-                        suggestion=(
-                            "Provide the value via `--var`, `--vars-file`, environment, "
-                            "or template defaults."
-                        ),
-                    )
-                candidate = self._prompt_for_missing(definitions, [name])[name]
-                validated = self._coerce_and_validate(name, definition, candidate)
-                if prompt_cache is not None:
-                    prompt_cache[name] = validated
-                prompted_values[name] = validated
-
-            resolved[name] = self._coerce_and_validate(name, definition, candidate)
-
-        self.register_secret_masking(resolved, definitions)
-        return resolved
+        return result
 
     def read_env_values(
         self,
@@ -180,9 +202,7 @@ class VariableResolver:
         environ: Mapping[str, str] | None = None,
         prefix: str = "MIXY_VAR_",
     ) -> dict[str, str]:
-        source = environ if environ is not None else {}
-        if environ is None:
-            source = os.environ
+        source: Mapping[str, str] = environ if environ is not None else os.environ
         values: dict[str, str] = {}
 
         for name in definitions:

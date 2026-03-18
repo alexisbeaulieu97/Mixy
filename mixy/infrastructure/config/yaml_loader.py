@@ -61,7 +61,7 @@ def _resolve_relative_paths(data: dict[str, Any], base_dir: Path) -> dict[str, A
         source = source_entry.get("source")
         if not isinstance(source, dict):
             continue
-        if source.get("type") not in {"local_dir", "local_file"}:
+        if source.get("type") != "local_dir":
             continue
 
         path_value = source.get("path")
@@ -110,5 +110,5 @@ def _suggestion_for(field_path: str) -> str:
     if field_path == "version":
         return 'Add `version: "1"` at the top of the config file.'
     if field_path.endswith(".type") or field_path == "type":
-        return "Use one of the supported source types: local_dir, local_file, git."
+        return "Use one of the supported source types: local_dir, git."
     return "Check the YAML field path and ensure the value matches the expected schema."

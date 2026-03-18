@@ -70,7 +70,7 @@ def test_validate_reports_choice_type_mismatch() -> None:
     assert any(issue.field_path == "variables.name.choices[0]" for issue in issues)
 
 
-def test_validate_warns_for_missing_local_source_path() -> None:
+def test_validate_errors_for_missing_local_source_path() -> None:
     definition = ProjectDefinition(
         version="1",
         sources=[
@@ -84,6 +84,6 @@ def test_validate_warns_for_missing_local_source_path() -> None:
     issues = validate(definition)
 
     assert any(
-        issue.field_path == "sources[0].source.path" and issue.severity == "warning"
+        issue.field_path == "sources[0].source.path" and issue.severity == "error"
         for issue in issues
     )

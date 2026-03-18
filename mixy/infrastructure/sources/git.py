@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
+from pathlib import Path
 
 from mixy.domain.exceptions import SourceResolutionError
 from mixy.domain.models import GitSource, MaterializedSource, SourceDefinition
@@ -31,20 +32,10 @@ class GitSourceProvider:
                 f'GitSourceProvider cannot resolve source type "{source.type}".',
                 suggestion="Use a `git` source with `url` and `ref` fields.",
             )
-        if not self._git.check_available():
-            raise SourceResolutionError(
-                "Git is not available on PATH. Install git to use git sources.",
-                suggestion="Install git and retry.",
-                system_error=True,
-            )
 
-        repo_path = self._cache.get_repo_path(source.url)
-        if self._cache.has_repo(source.url):
-            self._git.fetch(repo_path)
-        else:
-            self._git.clone_bare(source.url, repo_path)
+        repo_path, sha = self._ensure_repo(source)
+        fingerprint = sha256(f"{source.url}:{sha}".encode()).hexdigest()
 
-        sha = self._git.rev_parse(repo_path, source.ref)
         worktree_path = self._cache.get_worktree_path(source.url, sha)
         if not self._cache.has_worktree(source.url, sha):
             self._git.extract(repo_path, sha, worktree_path)
@@ -63,7 +54,7 @@ class GitSourceProvider:
         return MaterializedSource(
             root_path=root_path.resolve(),
             source_id=source.url,
-            fingerprint=self.fingerprint(source),
+            fingerprint=fingerprint,
             metadata={"provider": "git", "sha": sha, "url": source.url},
         )
 
@@ -73,10 +64,18 @@ class GitSourceProvider:
                 f'GitSourceProvider cannot fingerprint source type "{source.type}".',
                 suggestion="Use a `git` source with `url` and `ref` fields.",
             )
-        repo_path = self._cache.get_repo_path(source.url)
-        if not self._cache.has_repo(source.url):
-            self._git.clone_bare(source.url, repo_path)
-        else:
-            self._git.fetch(repo_path)
-        sha = self._git.rev_parse(repo_path, source.ref)
+        _, sha = self._ensure_repo(source)
         return sha256(f"{source.url}:{sha}".encode()).hexdigest()
+
+    def _ensure_repo(self, source: GitSource) -> tuple[Path, str]:
+        """Fetch or clone the bare repo and return (repo_path, resolved_sha).
+
+        DRY helper shared by resolve() and fingerprint() so network I/O happens once.
+        """
+        repo_path: Path = self._cache.get_repo_path(source.url)
+        if self._cache.has_repo(source.url):
+            self._git.fetch(repo_path)
+        else:
+            self._git.clone_bare(source.url, repo_path)
+        sha = self._git.rev_parse(repo_path, source.ref)
+        return repo_path, sha

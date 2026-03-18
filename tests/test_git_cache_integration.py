@@ -1,6 +1,6 @@
-import subprocess
 from pathlib import Path
 
+import pygit2
 import pytest
 from typer.testing import CliRunner
 
@@ -62,23 +62,19 @@ def test_cache_commands_list_and_clear(
 
 def _create_git_repo(path: Path) -> Path:
     path.mkdir(parents=True)
+    repo = pygit2.init_repository(str(path))
     (path / "README.md").write_text("hello\n", encoding="utf-8")
-    subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True, text=True)
-    subprocess.run(["git", "add", "."], cwd=path, check=True, capture_output=True, text=True)
-    subprocess.run(
-        [
-            "git",
-            "-c",
-            "user.name=Mixy",
-            "-c",
-            "user.email=mixy@example.com",
-            "commit",
-            "-m",
-            "init",
-        ],
-        cwd=path,
-        check=True,
-        capture_output=True,
-        text=True,
+    repo.index.add("README.md")
+    repo.index.write()
+    tree_id = repo.index.write_tree()
+    signature = pygit2.Signature("Mixy", "mixy@example.com")
+    repo.create_commit(
+        "refs/heads/main",
+        signature,
+        signature,
+        "init",
+        tree_id,
+        [],
     )
+    repo.set_head("refs/heads/main")
     return path

@@ -9,27 +9,10 @@ from typing import Annotated
 
 import typer
 
-from mixy.application.use_cases.generate_project import build_render_decisions
-from mixy.cli.errors import USER_ERROR_EXIT_CODE, format_validation_issue, raise_cli_error
-from mixy.domain.enums import ConflictPolicy
-from mixy.domain.models import (
-    FileOperation,
-    OutputDefinition,
-    ProjectDefinition,
-    ScalarValue,
-    VariableDefinition,
-)
-from mixy.domain.services import (
-    MergePlanner,
-    SourceResolver,
-    TemplateRenderer,
-    ValidationIssue,
-    VariableResolver,
-    validate,
-)
-from mixy.infrastructure.config import load_config, load_vars_file
-from mixy.infrastructure.sources.git import GitSourceProvider
-from mixy.infrastructure.sources.local import LocalDirProvider
+from mixy.application.use_cases.plan_project import plan_project
+from mixy.cli.errors import format_validation_issue, raise_cli_error
+from mixy.domain.models import FileOperation, ScalarValue, VariableDefinition
+from mixy.domain.services import ValidationIssue, VariableResolver
 
 
 def inspect_config(
@@ -69,82 +52,55 @@ def inspect_config(
     ] = False,
 ) -> None:
     """Inspect resolved variables, sources, and merge outputs."""
-    variable_resolver = VariableResolver()
-    source_resolver = SourceResolver([LocalDirProvider(), GitSourceProvider()])
-    merge_planner = MergePlanner()
-    template_renderer = TemplateRenderer()
-
     try:
-        definition = load_config(config_path)
-        _exit_on_validation_errors(validate(definition))
-        cli_overrides = variable_resolver.parse_cli_overrides(var or [])
-        vars_file_values = load_vars_file(vars_file) if vars_file is not None else {}
-        resolved_variables = variable_resolver.resolve_all(
-            definition.variables,
-            global_values=definition.values,
-            cli_overrides=cli_overrides,
-            vars_file_values=vars_file_values,
+        planned = plan_project(
+            config_path,
+            output_override=output,
+            fallback_output_path=Path("<output>"),
+            var_overrides=VariableResolver().parse_cli_overrides(var or []),
+            vars_file=vars_file,
             non_interactive=non_interactive,
-        )
-        sources = source_resolver.resolve_all(definition.sources)
-        render_decisions = build_render_decisions(
-            definition=definition,
-            materialized_sources=sources,
-            resolved_global=resolved_variables,
-            cli_overrides=cli_overrides,
-            vars_file_values=vars_file_values,
-            non_interactive=non_interactive,
-            variable_resolver=variable_resolver,
-            template_renderer=template_renderer,
-        )
-        plan = merge_planner.build_plan(
-            sources,
-            _resolve_output_definition(definition, output=output, overwrite=overwrite),
-            render_decisions,
+            overwrite=overwrite,
         )
     except Exception as error:
         raise_cli_error(error)
 
+    prepared = planned.prepared
+    _echo_validation_warnings(prepared.validation_issues)
+
     typer.echo("Config")
-    typer.echo(f"Name | {definition.name or '-'}")
-    typer.echo(f"Version | {definition.version}")
-    typer.echo(f"Sources | {len(definition.sources)}")
+    typer.echo(f"Name | {prepared.definition.name or '-'}")
+    typer.echo(f"Version | {prepared.definition.version}")
+    typer.echo(f"Sources | {len(prepared.definition.sources)}")
     typer.echo("")
     typer.echo("Variables")
     typer.echo("Name | Type | Value | Source")
     for line in _format_variable_rows(
-        definition.variables,
-        resolved_variables,
-        global_values=definition.values,
-        vars_file_values=vars_file_values,
-        cli_overrides=cli_overrides,
-        env_values=variable_resolver.read_env_values(definition.variables),
+        prepared.definition.variables,
+        prepared.resolved_variables,
+        global_values=prepared.definition.values,
+        vars_file_values=prepared.vars_file_values,
+        cli_overrides=prepared.cli_overrides,
+        env_values=prepared.env_values,
     ):
         typer.echo(line)
     typer.echo("")
     typer.echo("Sources")
     typer.echo("Id | Type | Path/URL")
-    for reference in definition.sources:
+    for reference in prepared.definition.sources:
         location = _source_location(reference.source)
         typer.echo(f"{reference.id} | {reference.source.type} | {location}")
     typer.echo("")
     typer.echo("Merge Preview")
     typer.echo("Source | Output Path | Action")
-    for line in _format_preview_rows(plan.operations):
+    for line in _format_preview_rows(planned.plan.operations):
         typer.echo(line)
 
 
-def _exit_on_validation_errors(issues: Sequence[ValidationIssue]) -> None:
-    error_issues = [issue for issue in issues if issue.severity == "error"]
-    warning_issues = [issue for issue in issues if issue.severity == "warning"]
-
-    for issue in warning_issues:
-        typer.echo(format_validation_issue(issue), err=True)
-
-    if error_issues:
-        for issue in error_issues:
+def _echo_validation_warnings(issues: list[ValidationIssue]) -> None:
+    for issue in issues:
+        if issue.severity == "warning":
             typer.echo(format_validation_issue(issue), err=True)
-        raise typer.Exit(code=USER_ERROR_EXIT_CODE)
 
 
 def _format_variable_rows(
@@ -234,29 +190,3 @@ def _format_preview_rows(operations: Sequence[FileOperation]) -> list[str]:
     if rows:
         return rows
     return ["- | - | -"]
-
-
-def _resolve_output_definition(
-    definition: ProjectDefinition,
-    *,
-    output: Path | None,
-    overwrite: bool,
-) -> OutputDefinition:
-    if output is not None:
-        conflict_policy = (
-            definition.output.conflict_policy
-            if definition.output is not None
-            else ConflictPolicy.FAIL
-        )
-        if overwrite:
-            conflict_policy = ConflictPolicy.OVERWRITE
-        return OutputDefinition(path=output, conflict_policy=conflict_policy)
-
-    if definition.output is None:
-        fallback_policy = ConflictPolicy.OVERWRITE if overwrite else ConflictPolicy.FAIL
-        return OutputDefinition(path=Path("<output>"), conflict_policy=fallback_policy)
-
-    if overwrite:
-        return definition.output.model_copy(update={"conflict_policy": ConflictPolicy.OVERWRITE})
-
-    return definition.output

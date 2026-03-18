@@ -45,8 +45,7 @@ class MergePlanner:
         output: OutputDefinition,
         render_decisions: Mapping[RenderDecisionKey, RenderedFile],
     ) -> RenderPlan:
-        directory_paths = self._collect_directory_paths(sources, output.path)
-        file_entries = self._collect_file_entries(sources, output.path, render_decisions)
+        directory_paths, file_entries = self._collect_all(sources, output.path, render_decisions)
         conflicts = self._detect_conflicts(directory_paths, file_entries)
 
         file_vs_directory = [
@@ -75,54 +74,45 @@ class MergePlanner:
             output_path=output.path,
         )
 
-    def _collect_directory_paths(
+    def _collect_all(
         self,
         sources: list[MaterializedSource],
         output_path: Path,
-    ) -> dict[Path, list[str]]:
+        render_decisions: Mapping[RenderDecisionKey, RenderedFile],
+    ) -> tuple[dict[Path, list[str]], list[PlannedEntry]]:
+        """Single-pass collection of directory paths and file entries."""
         directories: dict[Path, list[str]] = defaultdict(list)
         directories[output_path].append("<output>")
+        entries: list[PlannedEntry] = []
 
         for source in sources:
             for candidate in sorted(source.root_path.rglob("*")):
                 relative = candidate.relative_to(source.root_path)
                 if is_metadata_path(relative):
                     continue
+
                 if candidate.is_dir():
                     directories[output_path / relative].append(source.source_id)
-                elif relative.parent != Path("."):
-                    directories[output_path / relative.parent].append(source.source_id)
+                elif candidate.is_file():
+                    if relative.parent != Path("."):
+                        directories[output_path / relative.parent].append(source.source_id)
 
-        return directories
-
-    def _collect_file_entries(
-        self,
-        sources: list[MaterializedSource],
-        output_path: Path,
-        render_decisions: Mapping[RenderDecisionKey, RenderedFile],
-    ) -> list[PlannedEntry]:
-        entries: list[PlannedEntry] = []
-
-        for source in sources:
-            for candidate in sorted(path for path in source.root_path.rglob("*") if path.is_file()):
-                relative = candidate.relative_to(source.root_path)
-                if is_metadata_path(relative):
-                    continue
-                decision = render_decisions[self.render_decision_key(source.source_id, relative)]
-                output_relative = (
-                    decision.output_relative_path or relative.parent / decision.output_name
-                )
-                entries.append(
-                    PlannedEntry(
-                        source_id=source.source_id,
-                        source_path=candidate,
-                        relative_path=relative,
-                        output_path=output_path / output_relative,
-                        rendered_file=decision,
+                    key = self.render_decision_key(source.source_id, relative)
+                    decision = render_decisions[key]
+                    output_relative = (
+                        decision.output_relative_path or relative.parent / decision.output_name
                     )
-                )
+                    entries.append(
+                        PlannedEntry(
+                            source_id=source.source_id,
+                            source_path=candidate,
+                            relative_path=relative,
+                            output_path=output_path / output_relative,
+                            rendered_file=decision,
+                        )
+                    )
 
-        return entries
+        return directories, entries
 
     def _detect_conflicts(
         self,

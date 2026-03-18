@@ -1,8 +1,7 @@
-"""Template rendering service."""
+"""Application service for template rendering."""
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping, Sequence
 from fnmatch import fnmatch
 from pathlib import Path
@@ -14,6 +13,7 @@ from mixy.domain.exceptions import RenderingError
 from mixy.domain.models import RenderedFile
 from mixy.infrastructure.rendering.binary_detection import is_binary
 from mixy.infrastructure.rendering.jinja_renderer import (
+    UndefinedVariableError,
     has_jinja_suffix,
     render_string,
     strip_jinja_suffix,
@@ -61,10 +61,17 @@ class TemplateRenderer:
 
         try:
             rendered = render_string(source_path.read_text(encoding="utf-8"), dict(context))
+        except UndefinedVariableError as error:
+            raise RenderingError(
+                file_path=str(source_path),
+                variable_name=error.name,
+                reason=str(error),
+                suggestion="Provide the missing variable or update the template expression.",
+            ) from error
         except TemplateError as error:
             raise RenderingError(
                 file_path=str(source_path),
-                variable_name=_extract_variable_name(str(error)),
+                variable_name=None,
                 reason=str(error),
                 suggestion="Provide the missing variable or update the template expression.",
             ) from error
@@ -91,10 +98,17 @@ class TemplateRenderer:
 
         try:
             rendered = render_string(name, dict(context))
+        except UndefinedVariableError as error:
+            raise RenderingError(
+                file_path=name,
+                variable_name=error.name,
+                reason=str(error),
+                suggestion="Ensure the rendered output path only uses defined variables.",
+            ) from error
         except TemplateError as error:
             raise RenderingError(
                 file_path=name,
-                variable_name=_extract_variable_name(str(error)),
+                variable_name=None,
                 reason=str(error),
                 suggestion="Ensure the rendered output path only uses defined variables.",
             ) from error
@@ -143,10 +157,3 @@ class TemplateRenderer:
         if copy_mode == "render":
             return True
         return self.is_included(source_path, render_policy)
-
-
-def _extract_variable_name(message: str) -> str | None:
-    match = re.search(r"'([^']+)' is undefined", message)
-    if match is None:
-        return None
-    return match.group(1)

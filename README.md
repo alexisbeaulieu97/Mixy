@@ -39,7 +39,7 @@ mixy --help
 Requirements:
 
 - Python 3.11+
-- Git on `PATH` if you use `git` sources
+- `pygit2` for `git` sources
 
 ## Quickstart
 
@@ -218,6 +218,5 @@ Internal planning and product docs:
 ## Current limitations
 
 - `local_dir` and `git` are the working source providers in the current generation pipeline.
-- `local_file` exists in the config schema, but there is no matching source provider yet, so it
-  should be treated as unsupported for generation.
+- Git sources use the `pygit2` runtime rather than a shell `git` executable on `PATH`.
 - There is no published docs site yet; the documentation lives in Markdown under `docs/`.

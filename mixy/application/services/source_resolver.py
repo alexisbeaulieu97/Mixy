@@ -1,13 +1,13 @@
-"""Source provider dispatch and source materialization."""
+"""Application service for source provider dispatch and materialization."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import replace
 
+from mixy.application.ports import SourceProvider
 from mixy.domain.exceptions import SourceResolutionError
 from mixy.domain.models import MaterializedSource, SourceDefinition, TemplateReference
-from mixy.infrastructure.sources.base import SourceProvider
 
 
 class SourceResolver:
@@ -61,7 +61,7 @@ class SourceResolver:
 
         raise SourceResolutionError(
             f'No source provider available for type "{source.type}".',
-            suggestion="Use one of the supported source types: local_dir, local_file, git.",
+            suggestion="Use one of the supported source types: local_dir, git.",
         )
 
 

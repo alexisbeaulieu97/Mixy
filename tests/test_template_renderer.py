@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
+from mixy.application.services import TemplateRenderer
 from mixy.domain.exceptions import RenderingError
-from mixy.domain.services import TemplateRenderer
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "templates"
 

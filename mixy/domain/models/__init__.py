@@ -3,7 +3,6 @@
 from mixy.domain.models.config import (
     GitSource,
     LocalDirSource,
-    LocalFileSource,
     OutputDefinition,
     ProjectDefinition,
     ScalarValue,
@@ -42,7 +41,6 @@ __all__ = [
     "FileOperation",
     "GitSource",
     "LocalDirSource",
-    "LocalFileSource",
     "MaterializedSource",
     "MetadataPatternList",
     "OutputDefinition",

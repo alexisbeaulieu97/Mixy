@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pytest
 
+from mixy.application.ports import SourceProvider
+from mixy.application.services import SourceResolver
 from mixy.domain.exceptions import SourceResolutionError
 from mixy.domain.models import (
     LocalDirSource,
@@ -9,7 +11,7 @@ from mixy.domain.models import (
     SourceDefinition,
     TemplateReference,
 )
-from mixy.domain.services import SourceResolver
+from mixy.plugins.manager import get_source_providers
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "sources"
 
@@ -66,3 +68,10 @@ def test_resolve_all_uses_template_reference_id_and_subpath() -> None:
 
     assert materialized[0].source_id == "base"
     assert provider.seen_sources[0].subpath == "nested"
+
+
+def test_plugin_manager_returns_application_port_providers() -> None:
+    providers = get_source_providers()
+
+    assert providers
+    assert all(isinstance(provider, SourceProvider) for provider in providers)

@@ -28,8 +28,8 @@ sources:
       path: ./templates/base
   - id: readme
     source:
-      type: local_file
-      path: ./templates/README.md
+      type: local_dir
+      path: ./templates/readme
   - id: upstream
     subpath: python
     source:
@@ -40,4 +40,3 @@ sources:
 output:
   path: ./out
   conflict_policy: skip
-

@@ -22,7 +22,9 @@ def test_load_full_config() -> None:
     assert definition.name == "demo-project"
     assert definition.output is not None
     assert definition.output.path == (FIXTURES_DIR / "out").resolve()
-    assert definition.sources[1].source.path == (FIXTURES_DIR / "templates" / "README.md").resolve()
+    assert definition.sources[1].source.path == (
+        FIXTURES_DIR / "templates" / "readme"
+    ).resolve()
 
 
 def test_missing_version_raises_config_validation_error() -> None:

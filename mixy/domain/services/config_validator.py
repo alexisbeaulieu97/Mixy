@@ -9,7 +9,6 @@ from typing import Literal
 from mixy.domain.enums import VariableType
 from mixy.domain.models import (
     LocalDirSource,
-    LocalFileSource,
     ProjectDefinition,
 )
 
@@ -41,8 +40,8 @@ def validate(definition: ProjectDefinition) -> list[ValidationIssue]:
             )
         seen_ids.add(source.id)
 
-        if isinstance(source.source, (LocalDirSource, LocalFileSource)):
-            _add_path_warning(
+        if isinstance(source.source, LocalDirSource):
+            _add_path_error(
                 issues=issues,
                 path=source.source.path,
                 field_path=f"sources[{index}].source.path",
@@ -85,7 +84,7 @@ def validate(definition: ProjectDefinition) -> list[ValidationIssue]:
     return issues
 
 
-def _add_path_warning(
+def _add_path_error(
     *,
     issues: list[ValidationIssue],
     path: Path,
@@ -95,7 +94,7 @@ def _add_path_warning(
         return
     issues.append(
         ValidationIssue(
-            severity="warning",
+            severity="error",
             field_path=field_path,
             message=f'Local source path "{path}" does not exist.',
             suggestion="Create the path or update the config reference.",

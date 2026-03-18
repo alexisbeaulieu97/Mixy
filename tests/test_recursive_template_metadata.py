@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from mixy.application.use_cases.generate_project import generate_project
+from mixy.application.use_cases.plan_project import plan_project
 from mixy.domain.models import TemplateMetadata
 from mixy.domain.services import MetadataResolver
 from mixy.infrastructure.config import MetadataLoader
@@ -49,6 +50,12 @@ def test_generate_project_applies_recursive_metadata_and_excludes_metadata_files
         var_overrides={"project_name": "mixy-demo"},
         non_interactive=True,
     )
+    planned = plan_project(
+        config_path,
+        var_overrides={"project_name": "mixy-demo"},
+        non_interactive=True,
+    )
+    decision = planned.prepared.render_decisions[("recursive", "docs/guide.md")]
 
     assert (tmp_path / "out" / "README.md").read_text(encoding="utf-8") == "# mixy-demo\n"
     assert (tmp_path / "out" / "docs" / "index.md").read_text(encoding="utf-8") == (
@@ -60,3 +67,5 @@ def test_generate_project_applies_recursive_metadata_and_excludes_metadata_files
     assert not (tmp_path / "out" / ".mixy").exists()
     assert not (tmp_path / "out" / "docs" / "guide.md.mixy.yml").exists()
     assert result.output_path == tmp_path / "out"
+    assert decision.rendered is False
+    assert decision.output_relative_path == Path("docs/guide.md")

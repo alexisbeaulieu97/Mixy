@@ -110,22 +110,10 @@ sources:
       subpath: python/service
 ```
 
-## `local_file` status
+`local_file` is not part of the supported contract.
 
-`local_file` is accepted by the config schema:
-
-```yaml
-sources:
-  - id: readme
-    source:
-      type: local_file
-      path: ./README.md
-```
-
-Current limitation:
-
-- The generation pipeline only registers `local_dir` and `git` source providers.
-- Treat `local_file` as unsupported until a matching provider is added.
+If you need to include a single file, place it in a directory and reference that directory with
+`local_dir`, or model the file as part of a template directory.
 
 ## Variables and values
 

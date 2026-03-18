@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
+from mixy.application.ports import SourceProvider
 from mixy.domain.exceptions import SourceResolutionError
 from mixy.domain.models import LocalDirSource
-from mixy.infrastructure.sources.base import SourceProvider
 from mixy.infrastructure.sources.local import LocalDirProvider
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "sources"

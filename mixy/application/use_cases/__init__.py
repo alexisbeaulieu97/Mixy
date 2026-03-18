@@ -1,5 +1,6 @@
 """Application use cases."""
 
 from mixy.application.use_cases.generate_project import generate_project
+from mixy.application.use_cases.plan_project import plan_project, prepare_project
 
-__all__ = ["generate_project"]
+__all__ = ["generate_project", "plan_project", "prepare_project"]

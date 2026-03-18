@@ -35,11 +35,6 @@ class LocalDirSource(MixyModel):
     subpath: str | None = None
 
 
-class LocalFileSource(MixyModel):
-    type: Literal["local_file"]
-    path: Path
-
-
 class GitSource(MixyModel):
     type: Literal["git"]
     url: str
@@ -48,7 +43,7 @@ class GitSource(MixyModel):
 
 
 SourceDefinition: TypeAlias = Annotated[
-    LocalDirSource | LocalFileSource | GitSource,
+    LocalDirSource | GitSource,
     Field(discriminator="type"),
 ]
 

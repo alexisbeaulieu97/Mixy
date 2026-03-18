@@ -1,88 +1,78 @@
-"""Git CLI wrapper used by Mixy's Git source provider."""
+"""Git operations wrapper using pygit2 (no PATH dependency)."""
 
 from __future__ import annotations
 
 import shutil
-import subprocess
-import tarfile
-from collections.abc import Sequence
-from io import BytesIO
 from pathlib import Path
-from typing import Protocol, cast
 
-from mixy.domain.exceptions import MixyError
+import pygit2
 
-
-class RunCommand(Protocol):
-    def __call__(
-        self,
-        args: Sequence[str],
-        *,
-        capture_output: bool = False,
-    ) -> subprocess.CompletedProcess[str] | subprocess.CompletedProcess[bytes]: ...
+from mixy.domain.exceptions import SourceResolutionError
 
 
 class GitClient:
-    """Run Git commands with consistent error handling."""
-
-    def __init__(
-        self,
-        runner: RunCommand | None = None,
-    ) -> None:
-        self._runner = runner or _run_command
+    """Perform Git operations via pygit2 without requiring git on PATH."""
 
     def check_available(self) -> bool:
-        try:
-            self._runner(["git", "--version"])
-        except MixyError:
-            return False
+        """Always True: pygit2 is a Python dependency, not an external binary."""
         return True
 
     def clone_bare(self, url: str, dest: Path) -> None:
-        self._runner(["git", "clone", "--bare", url, str(dest)])
+        try:
+            pygit2.clone_repository(str(url), str(dest), bare=True)
+        except pygit2.GitError as error:
+            raise SourceResolutionError(
+                f"Failed to clone repository: {url}\n{error}",
+                suggestion="Check the URL and your network/SSH credentials.",
+            ) from error
 
     def fetch(self, repo_path: Path) -> None:
-        self._runner(["git", f"--git-dir={repo_path}", "fetch", "--all", "--tags", "--prune"])
+        try:
+            repo = pygit2.Repository(str(repo_path))
+            for remote in repo.remotes:
+                remote.fetch()
+        except pygit2.GitError as error:
+            raise SourceResolutionError(
+                f"Failed to fetch repository at {repo_path}: {error}",
+                suggestion="Check your network connection and credentials.",
+            ) from error
 
     def rev_parse(self, repo_path: Path, ref: str) -> str:
-        result = cast(
-            subprocess.CompletedProcess[bytes],
-            self._runner(
-                ["git", f"--git-dir={repo_path}", "rev-parse", ref],
-                capture_output=True,
-            ),
-        )
-        return result.stdout.decode().strip()
+        try:
+            repo = pygit2.Repository(str(repo_path))
+            obj = repo.revparse_single(ref)
+            return str(obj.peel(pygit2.Commit).id)
+        except (pygit2.GitError, KeyError) as error:
+            raise SourceResolutionError(
+                f"Failed to resolve ref '{ref}' in {repo_path}: {error}",
+                suggestion=f"Verify that ref '{ref}' exists in the repository.",
+            ) from error
 
     def extract(self, repo_path: Path, sha: str, dest: Path) -> None:
+        try:
+            repo = pygit2.Repository(str(repo_path))
+            commit = repo.revparse_single(sha).peel(pygit2.Commit)
+        except pygit2.GitError as error:
+            raise SourceResolutionError(
+                f"Failed to read commit {sha} from {repo_path}: {error}",
+            ) from error
+
         if dest.exists():
             shutil.rmtree(dest)
         dest.mkdir(parents=True, exist_ok=True)
-
-        result = cast(
-            subprocess.CompletedProcess[bytes],
-            self._runner(
-                ["git", f"--git-dir={repo_path}", "archive", sha],
-                capture_output=True,
-            ),
-        )
-
-        with tarfile.open(fileobj=BytesIO(result.stdout), mode="r|*") as archive:
-            archive.extractall(dest, filter="data")
+        _write_tree(repo, commit.tree, dest)
 
 
-def _run_command(
-    args: Sequence[str],
-    *,
-    capture_output: bool = False,
-) -> subprocess.CompletedProcess[str] | subprocess.CompletedProcess[bytes]:
-    try:
-        return subprocess.run(
-            list(args),
-            check=True,
-            capture_output=capture_output,
-            text=not capture_output,
-        )
-    except subprocess.CalledProcessError as error:
-        stderr = error.stderr.decode() if isinstance(error.stderr, bytes) else error.stderr
-        raise MixyError(f"Git command failed: {' '.join(args)}\n{stderr or ''}".strip()) from error
+def _write_tree(repo: pygit2.Repository, tree: pygit2.Tree, dest: Path) -> None:
+    for entry in tree:
+        if entry.name is None:
+            continue
+        path = dest / entry.name
+        obj = repo.get(entry.id)
+        if obj is None:
+            continue
+        if isinstance(obj, pygit2.Tree):
+            path.mkdir(exist_ok=True)
+            _write_tree(repo, obj, path)
+        elif isinstance(obj, pygit2.Blob):
+            path.write_bytes(obj.data)
