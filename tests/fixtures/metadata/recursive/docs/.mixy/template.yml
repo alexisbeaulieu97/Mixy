@@ -1,0 +1,18 @@
+render:
+  path_names: false
+include:
+  items:
+    - "*.md"
+  _replace: true
+variables:
+  project_name:
+    type: str
+    description: Documentation project name
+  color:
+    type: str
+    choices:
+      - red
+  docs_title:
+    type: str
+defaults:
+  docs_title: Reference

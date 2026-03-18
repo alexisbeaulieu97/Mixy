@@ -1,0 +1,17 @@
+version: "1"
+name: demo
+variables:
+  project_name:
+    type: str
+  module_name:
+    type: str
+    default: app
+sources:
+  - id: base
+    source:
+      type: local_dir
+      path: ./template
+output:
+  path: ./generated
+  conflict_policy: fail
+

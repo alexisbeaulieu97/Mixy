@@ -1,0 +1,18 @@
+version: "1"
+variables:
+  project_name:
+    type: str
+    default: demo
+sources:
+  - id: first
+    source:
+      type: local_dir
+      path: ./source-a
+  - id: second
+    source:
+      type: local_dir
+      path: ./source-b
+output:
+  path: ./generated
+  conflict_policy: fail
+

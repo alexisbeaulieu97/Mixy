@@ -1,0 +1,43 @@
+version: "1"
+name: demo-project
+description: Full config fixture
+variables:
+  project_name:
+    type: str
+    description: Name of the generated project
+    required: false
+    default: demo
+    choices:
+      - demo
+      - sample
+    pattern: "^[a-z]+$"
+  retries:
+    type: int
+    default: 3
+values:
+  project_name: sample
+sources:
+  - id: base
+    alias: starter
+    enabled: true
+    merge_strategy: overwrite
+    values:
+      project_name: demo
+    source:
+      type: local_dir
+      path: ./templates/base
+  - id: readme
+    source:
+      type: local_file
+      path: ./templates/README.md
+  - id: upstream
+    subpath: python
+    source:
+      type: git
+      url: https://example.com/templates.git
+      ref: main
+      subpath: templates/base
+output:
+  path: ./out
+  conflict_policy: skip
+

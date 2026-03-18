@@ -1,0 +1,6 @@
+sources:
+  - id: base
+    source:
+      type: local_dir
+      path: ./templates/base
+

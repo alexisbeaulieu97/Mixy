@@ -1,0 +1,17 @@
+copy_mode: render
+render:
+  path_names: true
+  text_files: true
+exclude:
+  - "*.png"
+variables:
+  project_name:
+    type: str
+    description: Project name
+  color:
+    type: str
+    choices:
+      - red
+      - blue
+defaults:
+  color: red
