@@ -1,5 +1,6 @@
 """Exports for Mixy's domain configuration models."""
 
+from mixy.domain.enums import ConflictType, CopyMode, ValueSource
 from mixy.domain.models.config import (
     GitSource,
     LocalDirSource,
@@ -24,7 +25,6 @@ from mixy.domain.models.render_plan import RenderPlan
 from mixy.domain.models.rendered_file import RenderedFile
 from mixy.domain.models.template_metadata import (
     DISALLOWED_TEMPLATE_METADATA_FIELDS,
-    CopyMode,
     EffectiveMetadata,
     MetadataPatternList,
     RenderMetadata,
@@ -33,6 +33,7 @@ from mixy.domain.models.template_metadata import (
 
 __all__ = [
     "Conflict",
+    "ConflictType",
     "CopyRaw",
     "CopyMode",
     "CreateDir",
@@ -55,5 +56,6 @@ __all__ = [
     "SourceDefinition",
     "TemplateReference",
     "TemplateMetadata",
+    "ValueSource",
     "VariableDefinition",
 ]

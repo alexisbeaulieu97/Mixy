@@ -3,20 +3,15 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
 
 import typer
-from loguru import logger
 
 from mixy.application.use_cases import validate_project
 from mixy.cli.errors import USER_ERROR_EXIT_CODE, format_validation_issue, raise_cli_error
 
 
 def validate_config(
-    config_path: Annotated[
-        Path,
-        typer.Argument(help="Path to the Mixy config file."),
-    ],
+    config_path: Path = typer.Argument(..., help="Path to the Mixy config file."),
 ) -> None:
     """Validate a Mixy config without generating files."""
     try:
@@ -35,4 +30,4 @@ def validate_config(
             typer.echo(format_validation_issue(issue), err=True)
         raise typer.Exit(code=USER_ERROR_EXIT_CODE)
 
-    logger.info("Config is valid: {}", config_path)
+    typer.echo("Config is valid: %s" % config_path)

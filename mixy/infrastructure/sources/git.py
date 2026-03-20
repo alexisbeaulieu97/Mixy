@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from hashlib import sha256
 from pathlib import Path
 
 from mixy.domain.exceptions import SourceResolutionError
@@ -14,14 +13,16 @@ from mixy.infrastructure.process import GitClient
 class GitSourceProvider:
     """Resolve git sources through a bare-clone cache."""
 
+    provider_id = "git"
+
     def __init__(
         self,
         *,
         git_client: GitClient | None = None,
         cache_store: CacheStore | None = None,
     ) -> None:
-        self._git = git_client or GitClient()
-        self._cache = cache_store or CacheStore()
+        self._git: GitClient | None = git_client
+        self._cache: CacheStore | None = cache_store
 
     def can_handle(self, source: SourceDefinition) -> bool:
         return source.type == "git"
@@ -34,16 +35,23 @@ class GitSourceProvider:
             )
 
         repo_path, sha = self._ensure_repo(source)
-        fingerprint = sha256(f"{source.url}:{sha}".encode()).hexdigest()
+        fingerprint = self.cache_store.cache_key(source.url, sha)
 
-        worktree_path = self._cache.get_worktree_path(source.url, sha)
-        if not self._cache.has_worktree(source.url, sha):
-            self._git.extract(repo_path, sha, worktree_path)
-            self._cache.write_metadata(source.url, source.ref, sha)
+        snapshot_path = self.cache_store.get_snapshot_path(source.url, sha)
+        with self.cache_store.snapshot_lock(source.url, sha):
+            if not self.cache_store.has_snapshot(source.url, sha):
+                with self.cache_store.snapshot_staging(source.url, sha) as staging_path:
+                    self.git_client.extract(repo_path, sha, staging_path)
+                    snapshot_path = self.cache_store.publish_snapshot(
+                        staging_path,
+                        source.url,
+                        source.ref,
+                        sha,
+                    )
 
-        root_path = worktree_path
+        root_path = snapshot_path
         if source.subpath:
-            root_path = worktree_path / source.subpath
+            root_path = snapshot_path / source.subpath
             if not root_path.exists():
                 raise SourceResolutionError(
                     f'Git source subpath does not exist: "{source.subpath}" '
@@ -65,17 +73,26 @@ class GitSourceProvider:
                 suggestion="Use a `git` source with `url` and `ref` fields.",
             )
         _, sha = self._ensure_repo(source)
-        return sha256(f"{source.url}:{sha}".encode()).hexdigest()
+        return self.cache_store.cache_key(source.url, sha)
 
     def _ensure_repo(self, source: GitSource) -> tuple[Path, str]:
-        """Fetch or clone the bare repo and return (repo_path, resolved_sha).
-
-        DRY helper shared by resolve() and fingerprint() so network I/O happens once.
-        """
-        repo_path: Path = self._cache.get_repo_path(source.url)
-        if self._cache.has_repo(source.url):
-            self._git.fetch(repo_path)
+        """Fetch or clone the bare repo and return (repo_path, resolved_sha)."""
+        repo_path = self.cache_store.get_repo_path(source.url)
+        if self.cache_store.has_repo(source.url):
+            self.git_client.fetch(repo_path)
         else:
-            self._git.clone_bare(source.url, repo_path)
-        sha = self._git.rev_parse(repo_path, source.ref)
+            self.git_client.clone_bare(source.url, repo_path)
+        sha = self.git_client.rev_parse(repo_path, source.ref)
         return repo_path, sha
+
+    @property
+    def git_client(self) -> GitClient:
+        if self._git is None:
+            self._git = GitClient()
+        return self._git
+
+    @property
+    def cache_store(self) -> CacheStore:
+        if self._cache is None:
+            self._cache = CacheStore()
+        return self._cache

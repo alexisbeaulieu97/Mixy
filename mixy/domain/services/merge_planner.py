@@ -5,15 +5,16 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
-from itertools import pairwise
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
-from mixy.domain.enums import ConflictPolicy
+from mixy.domain.enums import ConflictPolicy, ConflictType
 from mixy.domain.exceptions import MergeConflictError
 from mixy.domain.models import (
     Conflict,
     CopyRaw,
     CreateDir,
+    FileOperation,
     MaterializedSource,
     OutputDefinition,
     Overwrite,
@@ -23,12 +24,12 @@ from mixy.domain.models import (
     SkipExisting,
 )
 from mixy.domain.models.pre_merge_artifact import PreMergeArtifact, PreMergeEntry
-from mixy.domain.services.metadata_resolver import is_metadata_path
+from mixy.domain.services.metadata_resolver import should_skip_source_path
 
-RenderDecisionKey = tuple[str, str]
+RenderDecisionKey = Tuple[str, str]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class PlannedEntry:
     source_id: str
     source_path: Path
@@ -42,27 +43,29 @@ class MergePlanner:
 
     def build_plan(
         self,
-        sources: list[MaterializedSource],
+        sources: List[MaterializedSource],
         output: OutputDefinition,
         render_decisions: Mapping[RenderDecisionKey, RenderedFile],
         *,
-        pre_merge_artifact: PreMergeArtifact | None = None,
+        pre_merge_artifact: Optional[PreMergeArtifact] = None,
     ) -> RenderPlan:
         artifact = pre_merge_artifact or self._collect_pre_merge_artifact(sources, render_decisions)
         directory_paths, file_entries = self._materialize_pre_merge_artifact(artifact, output.path)
         conflicts = self._detect_conflicts(directory_paths, file_entries)
 
         file_vs_directory = [
-            conflict for conflict in conflicts if conflict.type == "file_vs_directory"
+            conflict for conflict in conflicts if conflict.type is ConflictType.FILE_VS_DIRECTORY
         ]
         if file_vs_directory:
             raise MergeConflictError(file_vs_directory)
 
-        file_conflicts = [conflict for conflict in conflicts if conflict.type == "file_conflict"]
+        file_conflicts = [
+            conflict for conflict in conflicts if conflict.type is ConflictType.FILE_CONFLICT
+        ]
         if output.conflict_policy is ConflictPolicy.FAIL and file_conflicts:
             raise MergeConflictError(file_conflicts)
 
-        operations: list[CreateDir | CopyRaw | Overwrite | RenderTemplate | SkipExisting] = [
+        operations: List[FileOperation] = [
             CreateDir(path=path)
             for path in sorted(
                 directory_paths,
@@ -80,17 +83,17 @@ class MergePlanner:
 
     def _collect_pre_merge_artifact(
         self,
-        sources: list[MaterializedSource],
+        sources: List[MaterializedSource],
         render_decisions: Mapping[RenderDecisionKey, RenderedFile],
     ) -> PreMergeArtifact:
-        directories: dict[Path, list[str]] = defaultdict(list)
+        directories: Dict[Path, List[str]] = defaultdict(list)
         directories[Path(".")].append("<output>")
-        entries: list[PreMergeEntry] = []
+        entries: List[PreMergeEntry] = []
 
         for source in sources:
             for candidate in sorted(source.root_path.rglob("*")):
                 relative = candidate.relative_to(source.root_path)
-                if is_metadata_path(relative):
+                if should_skip_source_path(relative):
                     continue
 
                 if candidate.is_dir():
@@ -104,7 +107,8 @@ class MergePlanner:
                             source_path=candidate,
                             relative_path=relative,
                             output_relative_path=(
-                                decision.output_relative_path or relative.parent / decision.output_name
+                                decision.output_relative_path
+                                or relative.parent / decision.output_name
                             ),
                             rendered_file=decision,
                         )
@@ -119,10 +123,11 @@ class MergePlanner:
         self,
         artifact: PreMergeArtifact,
         output_path: Path,
-    ) -> tuple[dict[Path, list[str]], list[PlannedEntry]]:
+    ) -> Tuple[Dict[Path, List[str]], List[PlannedEntry]]:
         directories = {
             output_path if relative_path == Path(".") else output_path / relative_path: owner_ids
             for relative_path, owner_ids in artifact.directory_paths.items()
+            if relative_path == Path(".") or not should_skip_source_path(relative_path)
         }
         file_entries = [
             PlannedEntry(
@@ -133,16 +138,17 @@ class MergePlanner:
                 rendered_file=entry.rendered_file,
             )
             for entry in artifact.file_entries
+            if not should_skip_source_path(entry.relative_path)
         ]
         return directories, file_entries
 
     def _detect_conflicts(
         self,
-        directories: dict[Path, list[str]],
-        file_entries: list[PlannedEntry],
-    ) -> list[Conflict]:
-        conflicts: list[Conflict] = []
-        files_by_path: dict[Path, list[PlannedEntry]] = defaultdict(list)
+        directories: Dict[Path, List[str]],
+        file_entries: List[PlannedEntry],
+    ) -> List[Conflict]:
+        conflicts: List[Conflict] = []
+        files_by_path: Dict[Path, List[PlannedEntry]] = defaultdict(list)
 
         for entry in file_entries:
             files_by_path[entry.output_path].append(entry)
@@ -150,13 +156,13 @@ class MergePlanner:
         for path, entries in files_by_path.items():
             if len(entries) < 2:
                 continue
-            for first, second in pairwise(entries):
+            for first, second in zip(entries, entries[1:]):
                 conflicts.append(
                     Conflict(
                         path=path,
                         source_a_id=first.source_id,
                         source_b_id=second.source_id,
-                        type="file_conflict",
+                        type=ConflictType.FILE_CONFLICT,
                     )
                 )
 
@@ -170,7 +176,7 @@ class MergePlanner:
                         path=directory,
                         source_a_id=entry.source_id,
                         source_b_id=directory_owner,
-                        type="file_vs_directory",
+                        type=ConflictType.FILE_VS_DIRECTORY,
                     )
                 )
 
@@ -178,11 +184,11 @@ class MergePlanner:
 
     def _build_file_operations(
         self,
-        file_entries: list[PlannedEntry],
+        file_entries: List[PlannedEntry],
         conflict_policy: ConflictPolicy,
-    ) -> list[CopyRaw | Overwrite | RenderTemplate | SkipExisting]:
-        operations: list[CopyRaw | Overwrite | RenderTemplate | SkipExisting] = []
-        chosen_by_output: dict[Path, PlannedEntry] = {}
+    ) -> List[FileOperation]:
+        operations: List[FileOperation] = []
+        chosen_by_output: Dict[Path, PlannedEntry] = {}
 
         for entry in file_entries:
             current = chosen_by_output.get(entry.output_path)
@@ -216,7 +222,7 @@ class MergePlanner:
 
         return operations
 
-    def _initial_operation(self, entry: PlannedEntry) -> CopyRaw | RenderTemplate:
+    def _initial_operation(self, entry: PlannedEntry) -> FileOperation:
         if entry.rendered_file.rendered:
             return RenderTemplate(
                 source_path=entry.source_path,

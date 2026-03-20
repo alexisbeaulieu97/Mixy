@@ -1,6 +1,6 @@
 # Git and Cache
 
-Mixy can resolve template sources from Git repositories and cache extracted worktrees locally.
+Mixy can resolve template sources from Git repositories and cache source snapshots locally.
 
 ## Git source example
 
@@ -28,17 +28,17 @@ sources:
 Requirements:
 
 - `ref` can be a branch, tag, or commit that the Git integration can resolve
-- Mixy uses its Python-backed Git integration path rather than shelling out to `git`
+- The `git` CLI must be available on `PATH`
 
 If the configured `subpath` does not exist at the resolved revision, Mixy fails with a
 source-resolution error.
 
 ## What gets cached
 
-Mixy caches two things:
+Mixy caches two kinds of snapshots:
 
-- a bare clone for each repository URL
-- extracted worktrees for resolved commit SHAs
+- repository snapshots for each repository URL
+- materialized cache snapshots for resolved commit SHAs
 
 The cache root comes from `platformdirs`. On Linux it is typically:
 
@@ -46,14 +46,8 @@ The cache root comes from `platformdirs`. On Linux it is typically:
 ~/.cache/mixy
 ```
 
-The cache contains:
-
-```text
-repos/
-worktrees/
-```
-
-Each extracted worktree also stores metadata with the URL, ref, and resolved SHA.
+The cache is organized into repository snapshots and materialized snapshots. Each materialized
+cache snapshot also stores metadata with the URL, ref, and resolved SHA.
 
 ## Listing cache entries
 

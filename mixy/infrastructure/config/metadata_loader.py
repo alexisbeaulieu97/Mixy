@@ -17,7 +17,7 @@ DIRECTORY_METADATA_FILE = "template.yml"
 FILE_METADATA_SUFFIX = ".mixy.yml"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class DiscoveredMetadata:
     directory_scopes: dict[Path, TemplateMetadata] = field(default_factory=dict)
     file_scopes: dict[Path, TemplateMetadata] = field(default_factory=dict)
@@ -62,7 +62,7 @@ class MetadataLoader:
         try:
             return TemplateMetadata.model_validate(raw_data)
         except ValidationError as error:
-            first = error.errors(include_url=False)[0]
+            first = error.errors()[0]
             field_path = ".".join(str(part) for part in first["loc"]) or None
             raise MetadataValidationError(
                 str(first["msg"]),

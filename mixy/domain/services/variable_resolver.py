@@ -6,26 +6,26 @@ import os
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, Dict, Optional, cast
 
-from pydantic import TypeAdapter, ValidationError
+from pydantic import ValidationError, parse_obj_as
 
 from mixy.domain.enums import VariableType
 from mixy.domain.exceptions import VariableResolutionError
 from mixy.domain.models import ScalarValue, VariableDefinition
 
-ResolvedVariables = dict[str, ScalarValue]
+ResolvedVariables = Dict[str, ScalarValue]
 
 
-TYPE_ADAPTERS: dict[VariableType, TypeAdapter[Any]] = {
-    VariableType.STR: TypeAdapter(str),
-    VariableType.INT: TypeAdapter(int),
-    VariableType.FLOAT: TypeAdapter(float),
-    VariableType.BOOL: TypeAdapter(bool),
+TYPE_ADAPTERS: Dict[VariableType, Any] = {
+    VariableType.STR: str,
+    VariableType.INT: int,
+    VariableType.FLOAT: float,
+    VariableType.BOOL: bool,
 }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ResolutionContext:
     """All inputs needed to resolve a set of variable definitions."""
 
@@ -37,7 +37,7 @@ class ResolutionContext:
     fallback_values: Mapping[str, object] = field(default_factory=dict)
     default_values: Mapping[str, object] = field(default_factory=dict)
     env_prefix: str = "MIXY_VAR_"
-    environ: Mapping[str, str] | None = None
+    environ: Optional[Mapping[str, str]] = None
 
 
 class VariableResolver:
@@ -53,7 +53,7 @@ class VariableResolver:
         resolved: ResolvedVariables = {}
 
         for name, definition in context.definitions.items():
-            candidate: object | None = None
+            candidate = None
 
             if name in context.cli_overrides:
                 candidate = context.cli_overrides[name]
@@ -92,14 +92,14 @@ class VariableResolver:
     def resolve_all(
         self,
         definitions: Mapping[str, VariableDefinition],
-        global_values: Mapping[str, object] | None = None,
-        source_values: Mapping[str, object] | None = None,
-        cli_overrides: Mapping[str, object] | None = None,
+        global_values: Optional[Mapping[str, object]] = None,
+        source_values: Optional[Mapping[str, object]] = None,
+        cli_overrides: Optional[Mapping[str, object]] = None,
         env_prefix: str = "MIXY_VAR_",
         *,
-        vars_file_values: Mapping[str, object] | None = None,
-        fallback_values: Mapping[str, object] | None = None,
-        environ: Mapping[str, str] | None = None,
+        vars_file_values: Optional[Mapping[str, object]] = None,
+        fallback_values: Optional[Mapping[str, object]] = None,
+        environ: Optional[Mapping[str, str]] = None,
     ) -> ResolvedVariables:
         return self.resolve(
             ResolutionContext(
@@ -149,7 +149,7 @@ class VariableResolver:
         result = self.resolve(
             ResolutionContext(
                 definitions=definitions,
-                global_values=dict(resolved_global) | dict(global_values or {}),
+                global_values=_merge_mappings(resolved_global, global_values),
                 source_values=source_values or {},
                 cli_overrides=cli_overrides or {},
                 vars_file_values=vars_file_values or {},
@@ -165,11 +165,11 @@ class VariableResolver:
         self,
         definitions: Mapping[str, VariableDefinition],
         *,
-        environ: Mapping[str, str] | None = None,
+        environ: Optional[Mapping[str, str]] = None,
         prefix: str = "MIXY_VAR_",
-    ) -> dict[str, str]:
+    ) -> Dict[str, str]:
         source: Mapping[str, str] = environ if environ is not None else os.environ
-        values: dict[str, str] = {}
+        values: Dict[str, str] = {}
 
         for name in definitions:
             env_key = f"{prefix}{name.upper()}"
@@ -178,8 +178,8 @@ class VariableResolver:
 
         return values
 
-    def parse_cli_overrides(self, overrides: Sequence[str]) -> dict[str, str]:
-        parsed: dict[str, str] = {}
+    def parse_cli_overrides(self, overrides: Sequence[str]) -> Dict[str, str]:
+        parsed: Dict[str, str] = {}
 
         for item in overrides:
             if "=" not in item:
@@ -207,10 +207,10 @@ class VariableResolver:
         definition: VariableDefinition,
         value: object,
     ) -> ScalarValue:
-        adapter = TYPE_ADAPTERS[definition.type]
+        expected_type = TYPE_ADAPTERS[definition.type]
 
         try:
-            coerced = cast(ScalarValue, adapter.validate_python(value))
+            coerced = cast(ScalarValue, parse_obj_as(expected_type, value))
         except ValidationError as error:
             raise VariableResolutionError(
                 name,
@@ -238,3 +238,12 @@ class VariableResolver:
                 )
 
         return coerced
+
+
+def _merge_mappings(
+    primary: Mapping[str, object],
+    secondary: Optional[Mapping[str, object]],
+) -> Dict[str, object]:
+    merged = dict(primary)
+    merged.update(secondary or {})
+    return merged

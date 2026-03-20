@@ -96,7 +96,6 @@ Example metadata:
 description: Root template metadata
 copy_mode: render
 render:
-  undefined: strict
   path_names: true
   text_files: true
 exclude:
@@ -119,6 +118,9 @@ Supported metadata fields:
 - `exclude`
 - `defaults`
 - `variables`
+
+Jinja undefined variables are handled strictly by default. There is no `render.undefined`
+metadata setting in the current contract.
 
 Disallowed metadata fields:
 

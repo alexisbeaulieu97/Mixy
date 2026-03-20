@@ -14,6 +14,9 @@ The TemplateRenderer SHALL render file contents through Jinja2 with the resolved
 - **WHEN** a file contains `{% if use_docker %}Dockerfile{% endif %}` and `use_docker` is `True`
 - **THEN** the rendered content includes `Dockerfile`
 
+### Requirement: Strict undefined variable handling
+The TemplateRenderer SHALL fail when a template references an undefined variable.
+
 #### Scenario: Strict undefined variable
 - **WHEN** a file references `{{ missing_var }}` and `missing_var` is not in the context
 - **THEN** the system raises a rendering error identifying the undefined variable and the file path
@@ -50,4 +53,3 @@ The system SHALL render all text files by default and support exclude patterns t
 #### Scenario: Non-excluded text file is rendered
 - **WHEN** a `.py` file is not in any exclude pattern
 - **THEN** the file is rendered through Jinja2
-

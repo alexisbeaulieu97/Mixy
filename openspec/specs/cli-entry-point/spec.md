@@ -25,3 +25,9 @@ The system SHALL accept a `--log-level` option on all commands to control loggin
 - **WHEN** user runs any command with `--log-level debug`
 - **THEN** the system outputs debug-level log messages to stderr
 
+### Requirement: Quiet mode
+The system SHALL accept a `--quiet` option on all commands to suppress non-essential log output while leaving explicit command results, help text, and errors visible.
+
+#### Scenario: Quiet validation run
+- **WHEN** user runs `mixy --quiet validate mixy.yml`
+- **THEN** the command still prints validation results while suppressing informational log noise

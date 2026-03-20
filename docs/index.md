@@ -22,10 +22,8 @@ Use these guides in order if you are new to the project:
 - Debugging collisions between sources: [`merging-and-conflicts.md`](merging-and-conflicts.md)
 - Using Git templates and cache commands: [`git-and-cache.md`](git-and-cache.md)
 
-## Internal docs
+## Maintainer docs
 
-These files are useful for maintainers, but they are not the primary user docs:
+If you maintain Mixy, start here:
 
-- Product direction: [`product/prd.md`](product/prd.md)
-- Implementation roadmap: [`roadmap.md`](roadmap.md)
-- Architecture boundary note: application-owned services live in `mixy/application/services` and the source-provider port lives in `mixy/application/ports`; avoid reintroducing imports from the retired compatibility paths.
+- [`dev.md`](dev.md)

@@ -15,7 +15,7 @@ from mixy.domain.models import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class GenerationFailure:
     operation: str
     target_path: Path
@@ -25,7 +25,7 @@ class GenerationFailure:
     previous_source_id: str | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class GenerationResult:
     output_path: Path
     created_directories: list[Path] = field(default_factory=list)

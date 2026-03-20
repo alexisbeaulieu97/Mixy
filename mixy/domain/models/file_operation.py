@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeAlias
+from typing import Union
 
 from mixy.domain.models.rendered_file import RenderedFile
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class CreateDir:
     path: Path
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class CopyRaw:
     source_path: Path
     output_path: Path
@@ -22,7 +22,7 @@ class CopyRaw:
     rendered_file: RenderedFile
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class RenderTemplate:
     source_path: Path
     output_path: Path
@@ -30,7 +30,7 @@ class RenderTemplate:
     rendered_file: RenderedFile
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class SkipExisting:
     source_path: Path
     output_path: Path
@@ -39,7 +39,7 @@ class SkipExisting:
     reason: str
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Overwrite:
     source_path: Path
     output_path: Path
@@ -48,4 +48,4 @@ class Overwrite:
     rendered_file: RenderedFile
 
 
-FileOperation: TypeAlias = CreateDir | CopyRaw | RenderTemplate | SkipExisting | Overwrite
+FileOperation = Union[CreateDir, CopyRaw, RenderTemplate, SkipExisting, Overwrite]

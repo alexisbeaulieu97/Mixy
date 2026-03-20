@@ -7,27 +7,27 @@ name = "mixy"
 version = "0.1.0"
 description = "CLI for composing and generating projects from one or more templates."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.8.17"
 license = { text = "MIT" }
 dependencies = [
-    "anyio>=4.0",
-    "jinja2>=3.1.6",
+    "click>=8.1.7,<8.2",
+    "anyio>=4.4,<5",
+    "jinja2>=3.1.6,<4",
     "loguru>=0.7.3",
-    "platformdirs>=4.9.4",
-    "pluggy>=1.4",
-    "pydantic>=2.12.5",
-    "pygit2>=1.14",
+    "platformdirs>=3.11,<4",
+    "pluggy>=1.5,<2",
+    "pydantic>=1.10.17,<2",
     "pyyaml>=6.0.3",
-    "typer>=0.24.1",
+    "typer>=0.12.5,<0.13",
+    "typing-extensions>=4.12.2",
 ]
 
 [dependency-groups]
 dev = [
-    "mypy>=1.19.1",
-    "pytest>=9.0.2",
-    "pytest-cov>=7.0.0",
-    "ruff>=0.15.6",
-    "types-pyyaml>=6.0.12.20250915",
+    "mypy>=1.14,<1.15",
+    "pytest>=8.3,<9",
+    "pytest-cov>=5,<6",
+    "ruff>=0.8,<0.9",
 ]
 
 [project.scripts]
@@ -40,16 +40,21 @@ mixy_builtins = "mixy.plugins.builtin"
 packages = ["mixy"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py38"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["B", "E", "F", "I", "UP"]
+select = ["B", "E", "F", "I"]
+per-file-ignores = { "mixy/cli/app.py" = ["B008"], "mixy/cli/commands/*.py" = ["B008"] }
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.8"
 strict = true
 packages = ["mixy"]
+
+[[tool.mypy.overrides]]
+module = ["yaml"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "--cov=mixy --cov-report=term-missing"

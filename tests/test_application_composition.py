@@ -5,12 +5,14 @@ from unittest.mock import Mock
 from mixy.application import composition as composition_module
 from mixy.application.composition import (
     PlanningDependencies,
+    build_app_settings,
     build_generation_executor,
     build_planning_dependencies,
     build_rendering_adapter,
 )
 from mixy.application.ports import PromptGateway, RenderingAdapter
 from mixy.application.services import SourceResolver, TemplateRenderer, VariableResolutionService
+from mixy.application.settings import AppSettings
 from mixy.domain.enums import ConflictPolicy
 from mixy.domain.models import OutputDefinition, ProjectDefinition, RenderPlan
 from mixy.domain.services import MergePlanner
@@ -146,6 +148,18 @@ def test_build_source_provider_registry_preserves_provided_registry() -> None:
 
     assert composition_module.build_source_provider_registry(registry) is registry
     assert registry.list_providers() == [provider]
+
+
+def test_build_app_settings_reads_runtime_environment(monkeypatch) -> None:
+    monkeypatch.setenv("MIXY_CACHE_ROOT", "/tmp/mixy-cache")
+    monkeypatch.setenv("MIXY_ENABLED_SOURCE_PROVIDERS", "git,local_dir")
+
+    settings = build_app_settings()
+
+    assert settings == AppSettings(
+        cache_root="/tmp/mixy-cache",
+        enabled_source_providers=["git", "local_dir"],
+    )
 
 
 class StubRenderingAdapter(RenderingAdapter):

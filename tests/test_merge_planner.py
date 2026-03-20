@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mixy.domain.enums import ConflictPolicy
+from mixy.domain.enums import ConflictPolicy, ConflictType
 from mixy.domain.exceptions import MergeConflictError
 from mixy.domain.models import (
     CopyRaw,
@@ -111,7 +111,7 @@ def test_file_vs_directory_conflict_always_fails() -> None:
             render_decisions_for(sources),
         )
 
-    assert error.value.conflicts[0].type == "file_vs_directory"
+    assert error.value.conflicts[0].type is ConflictType.FILE_VS_DIRECTORY
 
 
 def test_recursive_directory_merging_creates_shared_directory_once() -> None:
@@ -160,7 +160,10 @@ def test_pre_merge_artifact_path_matches_direct_collection() -> None:
         pre_merge_artifact=pre_merge_artifact_for(sources, render_decisions),
     )
 
-    assert [(type(op), getattr(op, "output_path", getattr(op, "path", None))) for op in actual.operations] == [
+    assert [
+        (type(op), getattr(op, "output_path", getattr(op, "path", None)))
+        for op in actual.operations
+    ] == [
         (type(op), getattr(op, "output_path", getattr(op, "path", None)))
         for op in expected.operations
     ]
@@ -182,7 +185,9 @@ def test_pre_merge_artifact_preserves_empty_directories(tmp_path: Path) -> None:
         pre_merge_artifact=pre_merge_artifact_for([source], render_decisions),
     )
 
-    created_dirs = {operation.path for operation in plan.operations if isinstance(operation, CreateDir)}
+    created_dirs = {
+        operation.path for operation in plan.operations if isinstance(operation, CreateDir)
+    }
     assert output_definition().path / "empty" in created_dirs
 
 

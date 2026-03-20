@@ -17,7 +17,7 @@ from mixy.domain.models.file_operation import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class RenderPlan:
     operations: list[FileOperation]
     conflicts: list[Conflict]

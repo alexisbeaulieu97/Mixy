@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from enum import StrEnum
-from typing import Annotated
+from enum import Enum
 
 import typer
 from loguru import logger
@@ -13,7 +12,7 @@ from mixy.cli.commands import create_cache_app, generate, inspect_config, valida
 from mixy.infrastructure.logging import configure_logging
 
 
-class LogLevel(StrEnum):
+class LogLevel(str, Enum):
     DEBUG = "debug"
     INFO = "info"
     WARNING = "warning"
@@ -33,21 +32,17 @@ app.command("inspect")(inspect_config)
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
-    log_level: Annotated[
-        LogLevel,
-        typer.Option(
-            "--log-level",
-            case_sensitive=False,
-            help="Set the minimum log level for Mixy output.",
-        ),
-    ] = LogLevel.INFO,
-    quiet: Annotated[
-        bool,
-        typer.Option(
-            "--quiet",
-            help="Only show warnings and errors.",
-        ),
-    ] = False,
+    log_level: LogLevel = typer.Option(
+        LogLevel.INFO,
+        "--log-level",
+        case_sensitive=False,
+        help="Set the minimum log level for Mixy output.",
+    ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        help="Only show warnings and errors.",
+    ),
 ) -> None:
     """Run the Mixy CLI."""
     effective_log_level = LogLevel.WARNING if quiet else log_level

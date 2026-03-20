@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from concurrent.futures import Future, ThreadPoolExecutor
 from collections.abc import Callable, Mapping
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Dict, List, Tuple
 
 from mixy.application.composition import (
     PlanningDependencies,
@@ -32,16 +33,20 @@ from mixy.domain.models import (
 from mixy.domain.models.pre_merge_artifact import PreMergeArtifact, PreMergeEntry
 from mixy.domain.services import (
     MergePlanner,
+    MetadataResolver,
     ValidationIssue,
-    VariableResolver as DomainVariableResolver,
-    is_metadata_path,
 )
-ValidationFn = Callable[[ProjectDefinition], list[ValidationIssue]]
-RenderDecisionKey = tuple[str, str]
-RenderDecisionMap = dict[RenderDecisionKey, RenderedFile]
+from mixy.domain.services import (
+    VariableResolver as DomainVariableResolver,
+)
+from mixy.domain.services.metadata_resolver import should_skip_source_path
+
+ValidationFn = Callable[[ProjectDefinition], List[ValidationIssue]]
+RenderDecisionKey = Tuple[str, str]
+RenderDecisionMap = Dict[RenderDecisionKey, RenderedFile]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class PreparedProject:
     definition: ProjectDefinition
     validation_issues: list[ValidationIssue]
@@ -54,7 +59,7 @@ class PreparedProject:
     pre_merge_artifact: PreMergeArtifact
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class PlannedProject:
     prepared: PreparedProject
     output_definition: OutputDefinition
@@ -335,7 +340,7 @@ def _build_source_render_artifacts(
 
     for source_path in _iter_source_paths(materialized.root_path):
         relative = source_path.relative_to(materialized.root_path)
-        if is_metadata_path(relative):
+        if should_skip_source_path(relative):
             continue
         if source_path.is_dir():
             directory_paths.setdefault(relative, []).append(materialized.source_id)
@@ -362,8 +367,10 @@ def _build_source_render_artifacts(
                 source_id=reference.id,
                 source_path=source_path,
                 relative_path=relative,
-                output_relative_path=rendered_file.output_relative_path
-                or relative.parent / rendered_file.output_name,
+                output_relative_path=(
+                    rendered_file.output_relative_path
+                    or relative.parent / rendered_file.output_name
+                ),
                 rendered_file=rendered_file,
             )
         )
@@ -426,6 +433,8 @@ def _build_file_render_decision(
             output_relative_path=output_relative,
         ),
     )
+
+
 def _iter_source_paths(root_path: Path) -> list[Path]:
     return sorted(root_path.rglob("*"))
 
@@ -447,6 +456,8 @@ def _render_output_relative_path(
         for part in relative_path.parts[:-1]
     ]
     return Path(*rendered_parts, final_name)
+
+
 def _default_validator(definition: ProjectDefinition) -> list[ValidationIssue]:
     from mixy.domain.services.config_validator import validate
 

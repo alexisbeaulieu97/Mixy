@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
 from mixy.domain.enums import VariableType
 from mixy.domain.models import (
     LocalDirSource,
@@ -32,42 +35,14 @@ def test_validate_reports_duplicate_source_ids() -> None:
     )
 
 
-def test_validate_reports_default_type_mismatch() -> None:
-    definition = ProjectDefinition(
-        version="1",
-        sources=[
-            TemplateReference(
-                id="base",
-                source=LocalDirSource(type="local_dir", path=Path("/tmp/templates")),
-            )
-        ],
-        variables={
-            "count": VariableDefinition(type=VariableType.INT, default="hello"),
-        },
-    )
-
-    issues = validate(definition)
-
-    assert any(issue.field_path == "variables.count.default" for issue in issues)
+def test_variable_definition_rejects_default_type_mismatch() -> None:
+    with pytest.raises(ValidationError):
+        VariableDefinition(type=VariableType.INT, default="hello")
 
 
-def test_validate_reports_choice_type_mismatch() -> None:
-    definition = ProjectDefinition(
-        version="1",
-        sources=[
-            TemplateReference(
-                id="base",
-                source=LocalDirSource(type="local_dir", path=Path("/tmp/templates")),
-            )
-        ],
-        variables={
-            "name": VariableDefinition(type=VariableType.STR, choices=[1, 2]),
-        },
-    )
-
-    issues = validate(definition)
-
-    assert any(issue.field_path == "variables.name.choices[0]" for issue in issues)
+def test_variable_definition_rejects_choice_type_mismatch() -> None:
+    with pytest.raises(ValidationError):
+        VariableDefinition(type=VariableType.STR, choices=[1, 2])
 
 
 def test_validate_errors_for_missing_local_source_path() -> None:

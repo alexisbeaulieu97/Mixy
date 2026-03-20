@@ -85,11 +85,20 @@ def _resolve_path(value: str, base_dir: Path) -> Path:
 
 
 def _to_config_validation_error(error: ValidationError) -> ConfigValidationError:
-    first = error.errors(include_url=False)[0]
+    issues = error.errors()
+    first = issues[0]
     field_path = _format_field_path(first["loc"])
     message = str(first["msg"])
     suggestion = _suggestion_for(field_path)
-    return ConfigValidationError(message, field_path=field_path, suggestion=suggestion)
+    return ConfigValidationError(
+        message,
+        field_path=field_path,
+        suggestion=suggestion,
+        details=[
+            f"{_format_field_path(issue['loc'])}: {issue['msg']}"
+            for issue in issues
+        ],
+    )
 
 
 def _format_field_path(location: tuple[Any, ...]) -> str:

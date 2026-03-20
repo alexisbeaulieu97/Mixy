@@ -8,7 +8,7 @@ from pathlib import Path
 from mixy.domain.models.rendered_file import RenderedFile
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class PreMergeEntry:
     source_id: str
     source_path: Path
@@ -17,7 +17,7 @@ class PreMergeEntry:
     rendered_file: RenderedFile
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class PreMergeArtifact:
     directory_paths: dict[Path, list[str]]
     file_entries: list[PreMergeEntry]
