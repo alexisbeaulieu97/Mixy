@@ -1,6 +1,9 @@
+from __future__ import annotations
+
+import os
+import subprocess
 from pathlib import Path
 
-import pygit2
 import pytest
 from typer.testing import CliRunner
 
@@ -9,6 +12,36 @@ from mixy.domain.models import GitSource
 from mixy.infrastructure.cache import CacheStore
 from mixy.infrastructure.process import GitClient
 from mixy.infrastructure.sources.git import GitSourceProvider
+
+
+def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env.update(
+        {
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_NOSYSTEM": "1",
+        }
+    )
+    return subprocess.run(
+        ["git", *args],
+        cwd=str(cwd),
+        env=env,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+
+def _create_git_repo(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    _run_git(["init"], cwd=path)
+    _run_git(["config", "user.name", "Mixy"], cwd=path)
+    _run_git(["config", "user.email", "mixy@example.com"], cwd=path)
+    (path / "README.md").write_text("hello\n", encoding="utf-8")
+    _run_git(["add", "README.md"], cwd=path)
+    _run_git(["commit", "-m", "init"], cwd=path)
+    return path
 
 
 def test_clone_real_local_repo_and_cache_hit(tmp_path: Path) -> None:
@@ -30,6 +63,7 @@ def test_clone_real_local_repo_and_cache_hit(tmp_path: Path) -> None:
     assert first.root_path.exists()
     assert second.root_path == first.root_path
     assert len(first_entries) == 1
+    assert cache.has_snapshot(source.url, first.metadata["sha"]) is True
 
 
 def test_cache_commands_list_and_clear(
@@ -39,9 +73,9 @@ def test_cache_commands_list_and_clear(
 ) -> None:
     cache = CacheStore(tmp_path / "cache")
     cache.get_repo_path("https://example.com/repo.git").mkdir(parents=True)
-    worktree = cache.get_worktree_path("https://example.com/repo.git", "abc123")
-    worktree.mkdir(parents=True)
-    (worktree / "file.txt").write_text("hello", encoding="utf-8")
+    snapshot = cache.get_snapshot_path("https://example.com/repo.git", "abc123")
+    snapshot.mkdir(parents=True)
+    (snapshot / "file.txt").write_text("hello", encoding="utf-8")
     cache.write_metadata("https://example.com/repo.git", "main", "abc123")
 
     from mixy.cli.commands import cache as cache_module
@@ -58,23 +92,3 @@ def test_cache_commands_list_and_clear(
     )
     assert clear_result.exit_code == 0
     assert cache.list_entries() == []
-
-
-def _create_git_repo(path: Path) -> Path:
-    path.mkdir(parents=True)
-    repo = pygit2.init_repository(str(path))
-    (path / "README.md").write_text("hello\n", encoding="utf-8")
-    repo.index.add("README.md")
-    repo.index.write()
-    tree_id = repo.index.write_tree()
-    signature = pygit2.Signature("Mixy", "mixy@example.com")
-    repo.create_commit(
-        "refs/heads/main",
-        signature,
-        signature,
-        "init",
-        tree_id,
-        [],
-    )
-    repo.set_head("refs/heads/main")
-    return path

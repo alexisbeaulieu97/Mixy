@@ -54,7 +54,7 @@ def test_git_source_provider_dispatch_and_subpath(tmp_path: Path) -> None:
     assert "extract" in client.calls
 
 
-def test_git_source_provider_reuses_cached_worktree(tmp_path: Path) -> None:
+def test_git_source_provider_reuses_cached_snapshot(tmp_path: Path) -> None:
     store = CacheStore(tmp_path)
     client = RecordingGitClient()
     provider = GitSourceProvider(git_client=client, cache_store=store)
@@ -65,6 +65,7 @@ def test_git_source_provider_reuses_cached_worktree(tmp_path: Path) -> None:
     provider.resolve(source)
 
     assert client.calls.count("extract") == first_extract_count
+    assert store.has_snapshot(source.url, client.sha) is True
 
 
 def test_git_source_provider_rejects_missing_subpath(tmp_path: Path) -> None:

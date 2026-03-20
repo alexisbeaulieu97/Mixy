@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING, Optional, cast
+
+from jinja2 import TemplateError
 
 from mixy.application.ports import (
     ConfigLoader,
@@ -16,8 +19,8 @@ from mixy.application.ports import (
     SourceProviderRegistry,
     VarsFileLoader,
 )
-from mixy.domain.services import MergePlanner
-from mixy.domain.services import MetadataResolver
+from mixy.application.settings import AppSettings
+from mixy.domain.services import MergePlanner, MetadataResolver
 from mixy.domain.services.variable_resolver import VariableResolver as DomainVariableResolver
 from mixy.infrastructure.config import MetadataLoader, load_config, load_vars_file
 from mixy.infrastructure.filesystem.file_writer import GenerationExecutor
@@ -31,10 +34,16 @@ from mixy.infrastructure.rendering.jinja_renderer import (
     strip_jinja_suffix,
 )
 from mixy.plugins.manager import get_source_providers
-from jinja2 import TemplateError
+
+if TYPE_CHECKING:
+    from mixy.application.services import (
+        SourceResolver,
+        TemplateRenderer,
+        VariableResolutionService,
+    )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class PlanningDependencies:
     variable_resolution_service: VariableResolutionService
     source_resolver: SourceResolver
@@ -42,15 +51,22 @@ class PlanningDependencies:
     merge_planner: MergePlanner
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class EntryPointSourceProviderRegistry:
     """Default provider registry backed by pluggy entrypoint discovery."""
 
+    settings: Optional[AppSettings] = None
+
     def list_providers(self) -> list[SourceProvider]:
-        return list(get_source_providers())
+        providers = list(get_source_providers())
+        settings = self.settings or build_app_settings()
+        if not settings.enabled_source_providers:
+            return providers
+        enabled = set(settings.enabled_source_providers)
+        return [provider for provider in providers if _provider_id(provider) in enabled]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class DefaultRenderingAdapter:
     """Default rendering adapter backed by infrastructure Jinja helpers."""
 
@@ -91,7 +107,9 @@ def build_planning_dependencies(
             secret_masker=secret_masker,
         ),
         source_resolver=source_resolver
-        or SourceResolver(build_source_provider_registry(source_provider_registry).list_providers()),
+        or SourceResolver(
+            build_source_provider_registry(source_provider_registry).list_providers()
+        ),
         template_renderer=template_renderer or TemplateRenderer(),
         merge_planner=merge_planner or MergePlanner(),
     )
@@ -126,7 +144,13 @@ def build_metadata_resolver_factory(
 def build_source_provider_registry(
     source_provider_registry: SourceProviderRegistry | None = None,
 ) -> SourceProviderRegistry:
-    return source_provider_registry or EntryPointSourceProviderRegistry()
+    return source_provider_registry or EntryPointSourceProviderRegistry(
+        settings=build_app_settings()
+    )
+
+
+def build_app_settings(settings: Optional[AppSettings] = None) -> AppSettings:
+    return settings or AppSettings.from_env()
 
 
 def build_prompt_gateway(prompt_gateway: PromptGateway | None = None) -> PromptGateway:
@@ -138,7 +162,7 @@ def build_secret_masker(secret_masker: SecretMasker | None = None) -> SecretMask
 
 
 def build_rendering_adapter(rendering_adapter: RenderingAdapter | None = None) -> RenderingAdapter:
-    return rendering_adapter or DefaultRenderingAdapter()
+    return cast(RenderingAdapter, rendering_adapter or DefaultRenderingAdapter())
 
 
 def build_generation_executor(executor: GenerationExecutor | None = None) -> GenerationExecutor:
@@ -160,3 +184,7 @@ def _coerce_variable_resolution_service(
         prompt_gateway=build_prompt_gateway(prompt_gateway),
         secret_masker=build_secret_masker(secret_masker),
     )
+
+
+def _provider_id(provider: SourceProvider) -> str:
+    return str(getattr(provider, "provider_id", provider.__class__.__name__)).strip()

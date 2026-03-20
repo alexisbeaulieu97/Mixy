@@ -4,8 +4,8 @@ Mixy generates a project from one or more template sources described in a YAML c
 
 ## Requirements
 
-- Python 3.11+
-- `pygit2` for `git` sources
+- Python 3.8.17+
+- `git` CLI for `git` sources
 
 ## Install from a checkout
 

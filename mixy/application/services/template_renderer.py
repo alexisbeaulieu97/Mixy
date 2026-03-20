@@ -5,9 +5,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from mixy.application.ports import RenderingAdapter, RenderingAdapterError
+from mixy.domain.enums import CopyMode
 from mixy.domain.exceptions import RenderingError
 from mixy.domain.models import RenderedFile
 
@@ -28,12 +29,13 @@ class TemplateRenderer:
         context: Mapping[str, Any],
         render_policy: Mapping[str, Sequence[str]] | None = None,
         *,
-        copy_mode: str | None = None,
+        copy_mode: Optional[CopyMode] = None,
         render_text_files: bool = True,
     ) -> RenderedFile:
         output_name = self._rendering_adapter.strip_jinja_suffix(source_path.name)
         forced_render = self._rendering_adapter.has_jinja_suffix(source_path.name)
         binary = self._rendering_adapter.is_binary(source_path)
+        copy_mode_value = copy_mode.value if isinstance(copy_mode, CopyMode) else copy_mode
 
         if binary:
             return RenderedFile(
@@ -46,7 +48,7 @@ class TemplateRenderer:
         should_render = forced_render or self.should_render(
             source_path,
             render_policy,
-            copy_mode=copy_mode,
+            copy_mode=copy_mode_value,
             render_text_files=render_text_files,
         )
 
@@ -133,15 +135,15 @@ class TemplateRenderer:
         source_path: Path,
         render_policy: Mapping[str, Sequence[str]] | None = None,
         *,
-        copy_mode: str | None = None,
+        copy_mode: Optional[object] = None,
         render_text_files: bool = True,
     ) -> bool:
         if self.is_excluded(source_path, render_policy):
             return False
-        if copy_mode == "raw":
+        if copy_mode == CopyMode.RAW.value:
             return False
         if not render_text_files:
             return self.is_included(source_path, render_policy)
-        if copy_mode == "render":
+        if copy_mode == CopyMode.RENDER.value:
             return True
         return self.is_included(source_path, render_policy)

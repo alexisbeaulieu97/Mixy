@@ -38,8 +38,8 @@ mixy --help
 
 Requirements:
 
-- Python 3.11+
-- `pygit2` for `git` sources
+- Python 3.8.17+
+- `git` CLI for `git` sources
 
 ## Quickstart
 
@@ -195,7 +195,7 @@ mixy version
 Global options:
 
 - `--log-level [debug|info|warning|error]`
-- `--quiet`
+- `--quiet` suppresses non-essential log output while leaving command results, help, and errors visible
 
 ## Documentation
 
@@ -210,13 +210,12 @@ User docs:
 - [`docs/merging-and-conflicts.md`](docs/merging-and-conflicts.md)
 - [`docs/git-and-cache.md`](docs/git-and-cache.md)
 
-Internal planning and product docs:
+Maintainer docs:
 
-- [`docs/product/prd.md`](docs/product/prd.md)
-- [`docs/roadmap.md`](docs/roadmap.md)
+- [`docs/dev.md`](docs/dev.md)
 
 ## Current limitations
 
 - `local_dir` and `git` are the working source providers in the current generation pipeline.
-- Git sources use the `pygit2` runtime rather than a shell `git` executable on `PATH`.
+- Git sources require the `git` executable on `PATH`.
 - There is no published docs site yet; the documentation lives in Markdown under `docs/`.

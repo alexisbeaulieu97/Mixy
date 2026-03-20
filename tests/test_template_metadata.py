@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mixy.domain.enums import VariableType
+from mixy.domain.enums import CopyMode, VariableType
 from mixy.domain.exceptions import MetadataValidationError
 from mixy.domain.models import TemplateMetadata, VariableDefinition
 from mixy.infrastructure.config import MetadataLoader
@@ -13,7 +13,7 @@ def test_template_metadata_accepts_allowed_fields() -> None:
         {
             "description": "docs",
             "copy_mode": "render",
-            "render": {"undefined": "strict", "path_names": True, "text_files": False},
+            "render": {"path_names": True, "text_files": False},
             "include": {"items": ["*.md"], "_replace": True},
             "exclude": ["*.png"],
             "defaults": {"project_name": "demo"},
@@ -26,7 +26,7 @@ def test_template_metadata_accepts_allowed_fields() -> None:
         }
     )
 
-    assert metadata.copy_mode == "render"
+    assert metadata.copy_mode is CopyMode.RENDER
     assert metadata.render is not None
     assert metadata.render.path_names is True
     assert metadata.include is not None

@@ -12,6 +12,8 @@ from mixy.domain.models import LocalDirSource, MaterializedSource, SourceDefinit
 class LocalDirProvider:
     """Resolve `local_dir` sources into local directory trees."""
 
+    provider_id = "local_dir"
+
     def can_handle(self, source: SourceDefinition) -> bool:
         return source.type == "local_dir"
 

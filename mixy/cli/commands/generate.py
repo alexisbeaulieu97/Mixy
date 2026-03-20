@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import List, Optional
 
 import typer
-from loguru import logger
 
 from mixy.application.use_cases.generate_project import generate_project
 from mixy.cli.errors import raise_cli_error
@@ -14,44 +13,38 @@ from mixy.domain.services import VariableResolver
 
 
 def generate(
-    config_path: Annotated[
-        Path,
-        typer.Argument(help="Path to the Mixy config file."),
-    ],
-    output: Annotated[
-        Path | None,
-        typer.Option("--output", help="Override the configured output directory."),
-    ] = None,
-    var: Annotated[
-        list[str] | None,
-        typer.Option(
-            "--var",
-            help="Override a variable with KEY=VALUE. Repeatable.",
-            metavar="KEY=VALUE",
-        ),
-    ] = None,
-    vars_file: Annotated[
-        Path | None,
-        typer.Option("--vars-file", help="Load variable overrides from a YAML file."),
-    ] = None,
-    non_interactive: Annotated[
-        bool,
-        typer.Option(
-            "--non-interactive",
-            help="Fail instead of prompting when required variables are unresolved.",
-        ),
-    ] = False,
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Show the plan without writing files."),
-    ] = False,
-    overwrite: Annotated[
-        bool,
-        typer.Option(
-            "--overwrite",
-            help="Overwrite file conflicts regardless of the config conflict policy.",
-        ),
-    ] = False,
+    config_path: Path = typer.Argument(..., help="Path to the Mixy config file."),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        help="Override the configured output directory.",
+    ),
+    var: Optional[List[str]] = typer.Option(
+        None,
+        "--var",
+        help="Override a variable with KEY=VALUE. Repeatable.",
+        metavar="KEY=VALUE",
+    ),
+    vars_file: Optional[Path] = typer.Option(
+        None,
+        "--vars-file",
+        help="Load variable overrides from a YAML file.",
+    ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--non-interactive",
+        help="Fail instead of prompting when required variables are unresolved.",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show the plan without writing files.",
+    ),
+    overwrite: bool = typer.Option(
+        False,
+        "--overwrite",
+        help="Overwrite file conflicts regardless of the config conflict policy.",
+    ),
 ) -> None:
     """Generate a project from a Mixy config."""
     variable_resolver = VariableResolver()
@@ -75,4 +68,4 @@ def generate(
         typer.echo(result)
         return
 
-    logger.info("{}", result.format_summary())
+    typer.echo(result.format_summary())

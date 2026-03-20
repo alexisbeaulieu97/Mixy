@@ -1,33 +1,45 @@
-"""Tests for GitClient using pygit2 (no subprocess dependency)."""
+"""Tests for GitClient using the git CLI."""
 
+from __future__ import annotations
+
+import os
+import subprocess
 from pathlib import Path
 
-import pygit2
 import pytest
 
 from mixy.domain.exceptions import SourceResolutionError
 from mixy.infrastructure.process.git_client import GitClient
 
 
-def _make_bare_repo(path: Path) -> tuple[pygit2.Repository, str]:
-    """Create a local bare repository with one commit.
+def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env.update(
+        {
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_NOSYSTEM": "1",
+        }
+    )
+    return subprocess.run(
+        ["git", *args],
+        cwd=str(cwd),
+        env=env,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
 
-    Returns (bare_repo, sha_of_commit).
-    """
-    work_path = path.parent / (path.name + "-work")
-    work_path.mkdir()
 
-    repo = pygit2.init_repository(str(work_path))
-    (work_path / "hello.txt").write_text("hello world", encoding="utf-8")
-    repo.index.add("hello.txt")
-    repo.index.write()
-    tree = repo.index.write_tree()
-    sig = pygit2.Signature("Test", "test@example.com")
-    oid = repo.create_commit("refs/heads/main", sig, sig, "init", tree, [])
-    repo.set_head("refs/heads/main")
-
-    pygit2.clone_repository(str(work_path), str(path), bare=True)
-    return pygit2.Repository(str(path)), str(oid)
+def _make_repo(path: Path) -> str:
+    path.mkdir(parents=True, exist_ok=True)
+    _run_git(["init"], cwd=path)
+    _run_git(["config", "user.name", "Test"], cwd=path)
+    _run_git(["config", "user.email", "test@example.com"], cwd=path)
+    (path / "hello.txt").write_text("hello world", encoding="utf-8")
+    _run_git(["add", "hello.txt"], cwd=path)
+    _run_git(["commit", "-m", "init"], cwd=path)
+    return _run_git(["rev-parse", "HEAD"], cwd=path).stdout.strip()
 
 
 def test_git_client_check_available_always_true() -> None:
@@ -37,7 +49,7 @@ def test_git_client_check_available_always_true() -> None:
 
 def test_git_client_clone_bare_creates_repo(tmp_path: Path) -> None:
     source = tmp_path / "source"
-    _make_bare_repo(source)
+    _make_repo(source)
 
     dest = tmp_path / "clone"
     client = GitClient()
@@ -49,29 +61,38 @@ def test_git_client_clone_bare_creates_repo(tmp_path: Path) -> None:
 
 def test_git_client_rev_parse_resolves_sha(tmp_path: Path) -> None:
     source = tmp_path / "source"
-    _, expected_sha = _make_bare_repo(source)
+    expected_sha = _make_repo(source)
+    bare_repo = tmp_path / "bare"
 
     client = GitClient()
-    sha = client.rev_parse(source, expected_sha)
+    client.clone_bare(str(source), bare_repo)
+
+    sha = client.rev_parse(bare_repo, expected_sha)
 
     assert sha == expected_sha
 
 
 def test_git_client_rev_parse_raises_for_unknown_ref(tmp_path: Path) -> None:
     source = tmp_path / "source"
-    _make_bare_repo(source)
+    _make_repo(source)
+    bare_repo = tmp_path / "bare"
 
     client = GitClient()
+    client.clone_bare(str(source), bare_repo)
+
     with pytest.raises(SourceResolutionError):
-        client.rev_parse(source, "nonexistent-ref-that-does-not-exist")
+        client.rev_parse(bare_repo, "nonexistent-ref-that-does-not-exist")
 
 
 def test_git_client_extract_writes_tree_files(tmp_path: Path) -> None:
     source = tmp_path / "source"
-    _, sha = _make_bare_repo(source)
+    sha = _make_repo(source)
+    bare_repo = tmp_path / "bare"
+
+    client = GitClient()
+    client.clone_bare(str(source), bare_repo)
 
     dest = tmp_path / "extracted"
-    client = GitClient()
-    client.extract(source, sha, dest)
+    client.extract(bare_repo, sha, dest)
 
     assert (dest / "hello.txt").read_text(encoding="utf-8") == "hello world"

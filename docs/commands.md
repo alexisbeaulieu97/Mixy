@@ -15,7 +15,7 @@ mixy --quiet validate mixy.yml
 Available global options:
 
 - `--log-level [debug|info|warning|error]`
-- `--quiet`
+- `--quiet`: suppress non-essential log output while keeping command results, validation errors, and dry-run plans visible
 
 ## `mixy version`
 

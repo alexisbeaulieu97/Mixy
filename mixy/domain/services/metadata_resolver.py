@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
+from typing import List, Optional
 
 from mixy.domain.exceptions import MetadataConflictError
 from mixy.domain.models import (
@@ -17,6 +18,8 @@ from mixy.domain.models import (
 
 METADATA_DIRECTORY_NAME = ".mixy"
 METADATA_FILE_SUFFIX = ".mixy.yml"
+IGNORED_SOURCE_PARTS = frozenset({"__pycache__"})
+IGNORED_SOURCE_SUFFIXES = frozenset({".pyc", ".pyo"})
 
 
 def is_metadata_path(relative_path: Path) -> bool:
@@ -27,13 +30,21 @@ def is_metadata_path(relative_path: Path) -> bool:
     )
 
 
+def should_skip_source_path(relative_path: Path) -> bool:
+    """Return True when a source path should not be treated as template content."""
+
+    return is_metadata_path(relative_path) or bool(
+        IGNORED_SOURCE_PARTS.intersection(relative_path.parts)
+    ) or relative_path.suffix in IGNORED_SOURCE_SUFFIXES
+
+
 class MetadataResolver:
     """Resolve inherited template metadata scopes for a given file."""
 
     def __init__(
         self,
-        directory_scopes: Mapping[Path, TemplateMetadata] | None = None,
-        file_scopes: Mapping[Path, TemplateMetadata] | None = None,
+        directory_scopes: Optional[Mapping[Path, TemplateMetadata]] = None,
+        file_scopes: Optional[Mapping[Path, TemplateMetadata]] = None,
     ) -> None:
         self._directory_scopes = {
             self._normalize_scope(path): metadata
@@ -132,12 +143,12 @@ class MetadataResolver:
     def _merge_pattern_list(
         current: list[str],
         incoming: MetadataPatternList,
-    ) -> list[str]:
+    ) -> List[str]:
         items = list(incoming.items)
         if incoming.replace:
             return items
 
-        merged: list[str] = list(current)
+        merged: List[str] = list(current)
         for item in items:
             if item not in merged:
                 merged.append(item)
@@ -218,7 +229,7 @@ class MetadataResolver:
         )
 
     @staticmethod
-    def _ancestor_directories(relative_path: Path) -> list[Path]:
+    def _ancestor_directories(relative_path: Path) -> List[Path]:
         if relative_path.parent == Path("."):
             return []
 
@@ -238,8 +249,8 @@ class MetadataResolver:
         return file_path
 
 
-def _unique(items: list[ScalarValue]) -> list[ScalarValue]:
-    ordered: list[ScalarValue] = []
+def _unique(items: List[ScalarValue]) -> List[ScalarValue]:
+    ordered: List[ScalarValue] = []
     for item in items:
         if item not in ordered:
             ordered.append(item)

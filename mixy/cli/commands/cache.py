@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Optional
 
 import typer
 
@@ -31,10 +31,11 @@ def create_cache_app(cache_store: CacheStore | None = None) -> typer.Typer:
 
     @app.command("clear")
     def clear_cache(
-        url: Annotated[
-            str | None,
-            typer.Option("--url", help="Clear cache entries for a specific repository URL."),
-        ] = None,
+        url: Optional[str] = typer.Option(
+            None,
+            "--url",
+            help="Clear cache entries for a specific repository URL.",
+        ),
     ) -> None:
         store = get_store()
         if url is None:

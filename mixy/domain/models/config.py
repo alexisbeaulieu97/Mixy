@@ -3,47 +3,95 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Literal, TypeAlias
+from typing import Any, Dict, List, Optional, Set, Type, TypeVar, Union
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, Field, StrictBool, StrictFloat, StrictInt, StrictStr, validator
+from typing_extensions import Annotated, Literal
 
 from mixy.domain.enums import ConflictPolicy, VariableType
 
-ScalarValue: TypeAlias = str | int | float | bool
+ScalarValue = Union[StrictStr, StrictInt, StrictFloat, StrictBool]
+MixyModelT = TypeVar("MixyModelT", bound="MixyModel")
 
 
 class MixyModel(BaseModel):
     """Base model with strict schema handling."""
 
-    model_config = ConfigDict(extra="forbid")
+    class Config:
+        extra = "forbid"
+
+    @classmethod
+    def model_validate(cls: Type[MixyModelT], data: Any) -> MixyModelT:
+        return cls.parse_obj(data)
+
+    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:
+        return self.dict(**kwargs)
+
+    def model_copy(self: MixyModelT, **kwargs: Any) -> MixyModelT:
+        return self.copy(**kwargs)
+
+    @classmethod
+    def model_construct(cls: Type[MixyModelT], **values: Any) -> MixyModelT:
+        return cls.construct(**values)
+
+    @property
+    def model_fields_set(self) -> Set[str]:
+        return set(self.__fields_set__)
 
 
 class VariableDefinition(MixyModel):
     type: VariableType
     required: bool = True
-    default: ScalarValue | None = None
-    description: str | None = None
-    choices: list[ScalarValue] | None = None
-    examples: list[ScalarValue] | None = None
-    pattern: str | None = None
+    default: Optional[ScalarValue] = None
+    description: Optional[str] = None
+    choices: Optional[List[ScalarValue]] = None
+    examples: Optional[List[ScalarValue]] = None
+    pattern: Optional[str] = None
     secret: bool = False
+
+    @validator("default", allow_reuse=True)
+    def _validate_default(
+        cls,
+        value: Optional[ScalarValue],
+        values: Dict[str, Any],
+    ) -> Optional[ScalarValue]:
+        variable_type = values.get("type")
+        if value is not None and variable_type is not None and not _matches_variable_type(
+            variable_type, value
+        ):
+            raise ValueError("Default value does not match the declared variable type.")
+        return value
+
+    @validator("choices", allow_reuse=True)
+    def _validate_choices(
+        cls,
+        value: Optional[List[ScalarValue]],
+        values: Dict[str, Any],
+    ) -> Optional[List[ScalarValue]]:
+        variable_type = values.get("type")
+        if value is None or variable_type is None:
+            return value
+        for choice in value:
+            if not _matches_variable_type(variable_type, choice):
+                raise ValueError("Choice value does not match the declared variable type.")
+        return value
 
 
 class LocalDirSource(MixyModel):
     type: Literal["local_dir"]
     path: Path
-    subpath: str | None = None
+    subpath: Optional[str] = None
 
 
 class GitSource(MixyModel):
     type: Literal["git"]
     url: str
     ref: str
-    subpath: str | None = None
+    subpath: Optional[str] = None
 
 
-SourceDefinition: TypeAlias = Annotated[
-    LocalDirSource | GitSource,
+SourceDefinition = Annotated[
+    Union[LocalDirSource, GitSource],
     Field(discriminator="type"),
 ]
 
@@ -51,31 +99,26 @@ SourceDefinition: TypeAlias = Annotated[
 class TemplateReference(MixyModel):
     id: str
     source: SourceDefinition
-    subpath: str | None = None
-    alias: str | None = None
+    subpath: Optional[str] = None
+    alias: Optional[str] = None
     enabled: bool = True
-    values: dict[str, ScalarValue] = Field(default_factory=dict)
-    merge_strategy: str | None = None
+    values: Dict[str, ScalarValue] = Field(default_factory=dict)
+    merge_strategy: Optional[str] = None
 
-    @field_validator("merge_strategy")
+    @validator("merge_strategy", allow_reuse=True)
     @classmethod
-    def _reject_merge_strategy(cls, value: str | None) -> str | None:
+    def _reject_merge_strategy(cls, value: Optional[str]) -> Optional[str]:
         if value is not None:
             raise ValueError("merge_strategy is unsupported for source entries.")
         return value
 
-    @field_validator("subpath")
-    @classmethod
-    def _validate_subpath(cls, value: str | None, info: ValidationInfo) -> str | None:
-        if value is None:
-            return value
-
-        source = info.data.get("source")
-        if getattr(source, "type", None) == "git":
+    @validator("subpath", allow_reuse=True)
+    def _validate_subpath(cls, value: Optional[str], values: Dict[str, Any]) -> Optional[str]:
+        source = values.get("source")
+        if value is not None and getattr(source, "type", None) == "git":
             raise ValueError(
                 "Reference-level subpath is not supported for git sources; use source.subpath."
             )
-
         return value
 
 
@@ -86,9 +129,19 @@ class OutputDefinition(MixyModel):
 
 class ProjectDefinition(MixyModel):
     version: str
-    name: str | None = None
-    description: str | None = None
-    sources: list[TemplateReference]
-    variables: dict[str, VariableDefinition] = Field(default_factory=dict)
-    values: dict[str, ScalarValue] = Field(default_factory=dict)
-    output: OutputDefinition | None = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    sources: List[TemplateReference]
+    variables: Dict[str, VariableDefinition] = Field(default_factory=dict)
+    values: Dict[str, ScalarValue] = Field(default_factory=dict)
+    output: Optional[OutputDefinition] = None
+
+
+def _matches_variable_type(expected: VariableType, value: object) -> bool:
+    if expected is VariableType.STR:
+        return isinstance(value, str)
+    if expected is VariableType.INT:
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected is VariableType.FLOAT:
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    return isinstance(value, bool)

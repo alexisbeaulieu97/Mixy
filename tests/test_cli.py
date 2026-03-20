@@ -226,13 +226,13 @@ def test_get_exit_code_maps_representative_errors(
     assert get_exit_code(error) == expected_exit_code
 
 
-def test_quiet_suppresses_info_level_output(runner: CliRunner, tmp_path: Path) -> None:
+def test_quiet_keeps_primary_success_output(runner: CliRunner, tmp_path: Path) -> None:
     config_path = _write_valid_config(tmp_path)
 
     result = runner.invoke(app, ["--quiet", "validate", str(config_path)])
 
     assert result.exit_code == 0
-    assert result.output == ""
+    assert "Config is valid:" in result.output
 
 
 def test_system_errors_exit_with_code_two(

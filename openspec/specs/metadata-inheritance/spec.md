@@ -11,11 +11,11 @@ The system SHALL resolve effective metadata for each file by merging scopes from
 - **THEN** the effective copy_mode for that file is `raw`
 
 #### Scenario: Nested directory refines root
-- **WHEN** root metadata sets `render.undefined: strict` and nested directory metadata does not override it
-- **THEN** the nested directory inherits `render.undefined: strict`
+- **WHEN** root metadata sets `render.path_names: true` and nested directory metadata does not override it
+- **THEN** the nested directory inherits `render.path_names: true`
 
 ### Requirement: Scalar inheritance — nearest scope wins
-For scalar fields (`copy_mode`, `render.undefined`, `render.path_names`), the nearest scope's value SHALL override parent scope values.
+For scalar fields (`copy_mode`, `render.path_names`), the nearest scope's value SHALL override parent scope values.
 
 #### Scenario: Scalar override
 - **WHEN** root sets `render.path_names: true` and subdirectory sets `render.path_names: false`
@@ -53,4 +53,3 @@ Nested scope variable definitions SHALL be compatible with parent definitions. T
 #### Scenario: Invalid refinement — incompatible choices
 - **WHEN** root defines `choices: ["a", "b"]` and child defines `choices: ["x", "y"]`
 - **THEN** the system raises a `MetadataConflictError`
-

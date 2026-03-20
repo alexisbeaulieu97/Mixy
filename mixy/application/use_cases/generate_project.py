@@ -4,16 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
+from typing import List, Optional, Union
 
 from mixy.application.composition import build_generation_executor
-from mixy.application.ports import MetadataResolverFactory
+from mixy.application.ports import ConfigLoader, MetadataResolverFactory, VarsFileLoader
 from mixy.application.services import SourceResolver, TemplateRenderer
-from mixy.application.use_cases.plan_project import (
-    ConfigLoader,
-    ValidationFn,
-    VarsFileLoader,
-    plan_project,
-)
+from mixy.application.use_cases.plan_project import plan_project
+from mixy.application.use_cases.validate_project import ValidationFn
 from mixy.domain.exceptions import MergeConflictError
 from mixy.domain.models import (
     Conflict,
@@ -31,22 +28,22 @@ from mixy.infrastructure.filesystem.file_writer import GenerationExecutor, Gener
 def generate_project(
     config_path: Path,
     *,
-    output_override: Path | None = None,
-    var_overrides: Mapping[str, object] | None = None,
-    vars_file: Path | None = None,
+    output_override: Optional[Path] = None,
+    var_overrides: Optional[Mapping[str, object]] = None,
+    vars_file: Optional[Path] = None,
     non_interactive: bool = False,
     dry_run: bool = False,
     overwrite: bool = False,
-    config_loader: ConfigLoader | None = None,
-    vars_file_loader: VarsFileLoader | None = None,
-    config_validator: ValidationFn | None = None,
-    variable_resolver: VariableResolver | None = None,
-    source_resolver: SourceResolver | None = None,
-    template_renderer: TemplateRenderer | None = None,
-    metadata_resolver_factory: MetadataResolverFactory | None = None,
-    merge_planner: MergePlanner | None = None,
-    executor: GenerationExecutor | None = None,
-) -> GenerationResult | str:
+    config_loader: Optional[ConfigLoader] = None,
+    vars_file_loader: Optional[VarsFileLoader] = None,
+    config_validator: Optional[ValidationFn] = None,
+    variable_resolver: Optional[VariableResolver] = None,
+    source_resolver: Optional[SourceResolver] = None,
+    template_renderer: Optional[TemplateRenderer] = None,
+    metadata_resolver_factory: Optional[MetadataResolverFactory] = None,
+    merge_planner: Optional[MergePlanner] = None,
+    executor: Optional[GenerationExecutor] = None,
+) -> Union[GenerationResult, str]:
     generation_executor = build_generation_executor(executor)
 
     try:
@@ -81,17 +78,16 @@ def format_plan(result: RenderPlan) -> str:
     lines = ["Action | Output Path | Source"]
 
     for operation in result.operations:
-        match operation:
-            case CreateDir(path=p):
-                lines.append(f"create_dir | {p} | -")
-            case CopyRaw(output_path=p, source_id=s):
-                lines.append(f"copy_raw   | {p} | {s}")
-            case RenderTemplate(output_path=p, source_id=s):
-                lines.append(f"render     | {p} | {s}")
-            case Overwrite(output_path=p, source_id=s):
-                lines.append(f"overwrite  | {p} | {s}")
-            case SkipExisting(output_path=p):
-                lines.append(f"skip       | {p} | -")
+        if isinstance(operation, CreateDir):
+            lines.append(f"create_dir | {operation.path} | -")
+        elif isinstance(operation, CopyRaw):
+            lines.append(f"copy_raw   | {operation.output_path} | {operation.source_id}")
+        elif isinstance(operation, RenderTemplate):
+            lines.append(f"render     | {operation.output_path} | {operation.source_id}")
+        elif isinstance(operation, Overwrite):
+            lines.append(f"overwrite  | {operation.output_path} | {operation.source_id}")
+        elif isinstance(operation, SkipExisting):
+            lines.append(f"skip       | {operation.output_path} | -")
 
     if result.conflicts:
         lines.append("Conflicts:")
@@ -104,7 +100,7 @@ def format_plan(result: RenderPlan) -> str:
     return "\n".join(lines)
 
 
-def format_conflicts(conflicts: list[Conflict]) -> str:
+def format_conflicts(conflicts: List[Conflict]) -> str:
     lines = ["Conflicts:"]
     for conflict in conflicts:
         lines.append(

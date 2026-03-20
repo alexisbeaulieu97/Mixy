@@ -351,7 +351,6 @@ variables:
 render:
   path_names: true
   text_files: true
-  undefined: strict
   exclude:
     - "*.png"
     - "*.jpg"
@@ -516,7 +515,6 @@ Questions to settle:
 * Which files are treated as templates?
 * Do we use suffix-based rendering like `.j2`, allowlists, blocklists, or “render everything as text unless binary”?
 * How do we detect binary files safely?
-* Are undefined Jinja variables fatal?
 
 Proposed MVP:
 

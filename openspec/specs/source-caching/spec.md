@@ -4,19 +4,19 @@
 TBD - created by archiving change git-source-and-caching. Update Purpose after archive.
 ## Requirements
 ### Requirement: Cache store for Git repositories
-The system SHALL cache cloned Git repositories and extracted content under the platformdirs user cache directory.
+The system SHALL cache Git repository snapshots and extracted content snapshots under the platformdirs user cache directory.
 
 #### Scenario: First clone is cached
 - **WHEN** a Git source is resolved for the first time
-- **THEN** the bare clone is stored in the cache and the extracted content is stored by URL+SHA
+- **THEN** the repository snapshot is stored in the cache and the materialized snapshot is stored by URL+SHA
 
 #### Scenario: Cache hit on second resolve
 - **WHEN** the same Git source with the same resolved SHA is requested again
-- **THEN** the cached extracted content is returned without re-cloning or re-extracting
+- **THEN** the cached materialized snapshot is returned without re-cloning or re-extracting
 
 #### Scenario: Cache miss on new commit
 - **WHEN** the same URL is requested but the branch points to a new commit
-- **THEN** the provider fetches updates to the cached bare clone and extracts the new commit
+- **THEN** the provider fetches updates to the cached repository snapshot and materializes the new commit
 
 ### Requirement: Cache list command
 The CLI SHALL provide `mixy cache list` showing all cached entries with repository URL, ref, resolved SHA, and disk size.
@@ -39,4 +39,3 @@ The CLI SHALL provide `mixy cache clear` to remove cached entries.
 #### Scenario: Clear specific entry
 - **WHEN** user runs `mixy cache clear --url https://github.com/example/template.git`
 - **THEN** only the cache entries for that URL are removed
-

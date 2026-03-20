@@ -26,12 +26,12 @@ The GitSourceProvider SHALL resolve `git` source definitions by cloning the repo
 - **WHEN** source has `subpath: nonexistent/path` that does not exist in the repo
 - **THEN** the provider raises a `SourceResolutionError` identifying the missing subpath
 
-### Requirement: Git integration does not require a shell `git` binary
-The system SHALL perform Git source resolution through the current Python-backed integration path and not require a shell `git` executable on PATH.
+### Requirement: Git integration requires the `git` CLI
+The system SHALL perform Git source resolution by invoking the `git` executable and require it to be available on `PATH`.
 
 #### Scenario: Git source resolution
 - **WHEN** a `git` source is resolved
-- **THEN** the provider uses the configured Git integration path rather than shelling out to `git`
+- **THEN** the provider uses the `git` CLI rather than a Python-only repository backend
 
 ### Requirement: Git fetch and update
 The GitSourceProvider SHALL fetch updates for already-cloned repositories to handle moved branches and new tags.

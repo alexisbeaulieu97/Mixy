@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import cast
+from typing import Dict, Optional, cast
 
 from mixy.application.composition import build_prompt_gateway, build_secret_masker
 from mixy.application.ports import PromptGateway, SecretMasker
@@ -31,16 +31,16 @@ class VariableResolutionService:
     def resolve_all(
         self,
         definitions: Mapping[str, VariableDefinition],
-        global_values: Mapping[str, object] | None = None,
-        source_values: Mapping[str, object] | None = None,
-        cli_overrides: Mapping[str, object] | None = None,
+        global_values: Optional[Mapping[str, object]] = None,
+        source_values: Optional[Mapping[str, object]] = None,
+        cli_overrides: Optional[Mapping[str, object]] = None,
         env_prefix: str = "MIXY_VAR_",
         *,
-        vars_file_values: Mapping[str, object] | None = None,
-        fallback_values: Mapping[str, object] | None = None,
-        environ: Mapping[str, str] | None = None,
+        vars_file_values: Optional[Mapping[str, object]] = None,
+        fallback_values: Optional[Mapping[str, object]] = None,
+        environ: Optional[Mapping[str, str]] = None,
         non_interactive: bool = False,
-    ) -> dict[str, ScalarValue]:
+    ) -> Dict[str, ScalarValue]:
         context = ResolutionContext(
             definitions=definitions,
             global_values=global_values or {},
@@ -57,9 +57,9 @@ class VariableResolutionService:
         self,
         definitions: Mapping[str, VariableDefinition],
         resolved_global: Mapping[str, ScalarValue],
-        source_values: Mapping[str, object] | None = None,
-        cli_overrides: Mapping[str, object] | None = None,
-    ) -> dict[str, ScalarValue]:
+        source_values: Optional[Mapping[str, object]] = None,
+        cli_overrides: Optional[Mapping[str, object]] = None,
+    ) -> Dict[str, ScalarValue]:
         context = self._resolver.build_source_context(
             definitions,
             resolved_global,
@@ -74,23 +74,23 @@ class VariableResolutionService:
         definitions: Mapping[str, VariableDefinition],
         resolved_global: Mapping[str, ScalarValue],
         *,
-        global_values: Mapping[str, object] | None = None,
-        vars_file_values: Mapping[str, object] | None = None,
-        source_values: Mapping[str, object] | None = None,
-        cli_overrides: Mapping[str, object] | None = None,
-        default_values: Mapping[str, object] | None = None,
-        fallback_values: Mapping[str, object] | None = None,
+        global_values: Optional[Mapping[str, object]] = None,
+        vars_file_values: Optional[Mapping[str, object]] = None,
+        source_values: Optional[Mapping[str, object]] = None,
+        cli_overrides: Optional[Mapping[str, object]] = None,
+        default_values: Optional[Mapping[str, object]] = None,
+        fallback_values: Optional[Mapping[str, object]] = None,
         env_prefix: str = "MIXY_VAR_",
-        environ: Mapping[str, str] | None = None,
+        environ: Optional[Mapping[str, str]] = None,
         non_interactive: bool = False,
-    ) -> dict[str, ScalarValue]:
+    ) -> Dict[str, ScalarValue]:
         context = ResolutionContext(
             definitions=definitions,
-            global_values=dict(resolved_global) | dict(global_values or {}),
+            global_values=_merge_mappings(resolved_global, global_values),
             source_values=source_values or {},
             cli_overrides=cli_overrides or {},
             vars_file_values=vars_file_values or {},
-            fallback_values={**self._prompt_cache, **(fallback_values or {})},
+            fallback_values=_merge_mappings(self._prompt_cache, fallback_values),
             default_values=default_values or {},
             env_prefix=env_prefix,
             environ=environ,
@@ -101,12 +101,12 @@ class VariableResolutionService:
         self,
         definitions: Mapping[str, VariableDefinition],
         *,
-        environ: Mapping[str, str] | None = None,
+        environ: Optional[Mapping[str, str]] = None,
         prefix: str = "MIXY_VAR_",
-    ) -> dict[str, str]:
+    ) -> Dict[str, str]:
         return self._resolver.read_env_values(definitions, environ=environ, prefix=prefix)
 
-    def parse_cli_overrides(self, overrides: Sequence[str]) -> dict[str, str]:
+    def parse_cli_overrides(self, overrides: Sequence[str]) -> Dict[str, str]:
         return self._resolver.parse_cli_overrides(overrides)
 
     def _resolve_with_prompt(
@@ -114,8 +114,8 @@ class VariableResolutionService:
         context: ResolutionContext,
         *,
         allow_prompt: bool,
-    ) -> dict[str, ScalarValue]:
-        merged_fallback = dict(self._prompt_cache) | dict(context.fallback_values)
+    ) -> Dict[str, ScalarValue]:
+        merged_fallback = _merge_mappings(self._prompt_cache, context.fallback_values)
 
         while True:
             active_context = ResolutionContext(
@@ -171,3 +171,12 @@ class VariableResolutionService:
             choices = ", ".join(str(choice) for choice in definition.choices)
             parts.append(f"choices: {choices}")
         return " - ".join(parts)
+
+
+def _merge_mappings(
+    primary: Mapping[str, object],
+    secondary: Optional[Mapping[str, object]],
+) -> Dict[str, object]:
+    merged = dict(primary)
+    merged.update(secondary or {})
+    return merged
